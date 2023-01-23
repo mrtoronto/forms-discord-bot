@@ -1,0 +1,5 @@
+*pycache*
+output.log
+data/*
+venv/*
+*local_settings.py
