@@ -2,6 +2,8 @@
 
 ## How to run
 
+Copy the local_settings_example.py file, rename it to local_settings.py and add your bot's access token (not application ID or application token).
+
 Run the following commands to create a virtual environment, install the required packages and then start the processes.
 ```
 python3 -m venv venv
