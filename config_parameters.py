@@ -14,6 +14,11 @@ CHECK_PENDING_ALPHA_INTERVAL = 30
 
 ######## Alpha bot parameters
 
+### Channel the bot will ping for messages with enough alpha
+ALPHA_CHANNEL_ID = 1045019403701461092
+
+CHANNELS_TO_CHECK = [1045019403701461092]
+
 ### Alpha react ID the bot will check for
 ALPHA_REACT_ID = 908989024021118986
 

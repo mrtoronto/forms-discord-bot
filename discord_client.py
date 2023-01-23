@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import json
 import os
+import time
 import discord
 from discord.ext import tasks
 from local_settings import DISCORD_TOKEN
@@ -19,8 +20,6 @@ class FormsClient(discord.Client):
         super().__init__(*args, **kwargs)
         self._load_forms_points()
 
-        self.ALPHA_CHANNEL_ID = 1045019403701461092
-
         self.pending_alpha = {}
         self.all_sent_alpha = []
 
@@ -31,11 +30,11 @@ class FormsClient(discord.Client):
 
     async def setup_hook(self) -> None:
         ### Checks one channel for alpha now. Could be updated to check a list of channels or all
-        self.check_recent_messages_task.start(channel_id=self.ALPHA_CHANNEL_ID)
+        self.check_recent_messages_task.start(channel_ids=CHANNELS_TO_CHECK)
         self.check_all_alpha_messages.start()
 
         ### Used when bot sends a message about alpha
-        self.ALPHA_CHANNEL = await self.fetch_channel(self.ALPHA_CHANNEL_ID)
+        self.ALPHA_CHANNEL = await self.fetch_channel(ALPHA_CHANNEL_ID)
 
     async def on_ready(self):
         logger.info(f'Logged in as {self.user} (ID: {self.user.id})')
@@ -55,25 +54,34 @@ class FormsClient(discord.Client):
 
 
     @tasks.loop(seconds=CHECK_RECENT_MESSAGES_INTERVAL)  # task runs every 60 seconds
-    async def check_recent_messages_task(self, channel_id, threshold=LAYER_1_ALPHA_THRESHOLD):
+    async def check_recent_messages_task(self, channel_ids, threshold=LAYER_1_ALPHA_THRESHOLD):
         ### Check for new messages with `threshold` or more alpha reacts
         ### Check messages that had alpha reacts before to see if any broke threshold
-        logger.info('Checking for new messages with alpha reacts')
-        channel = await self.fetch_channel(channel_id)
         
+        start_time = time.time()
         ### Get all messages sent since start_date
         start_date = datetime.now() - timedelta(hours=TRAILING_ALPHA_PERIOD)
-        async for message in channel.history(after=start_date):
-            ### Check reacts on each message in the history
-            for r in message.reactions:
-                ### Check if message has a single alpha react
-                ### Check if message has already been sent as alpha
-                ### Check if message is already pending alpha
-                if (self._check_custom_react(r, n=threshold, react_id=ALPHA_REACT_ID)) and \
-                    (message.id not in self.all_sent_alpha) and \
-                    (message.id not in self.pending_alpha):
-                    logger.info('Found one with an ALPHA!')
-                    self.pending_alpha[message.id] = {'channel_id': message.channel.id}
+
+        for channel_id in channel_ids:
+            logger.info(f'Checking for new messages with alpha reacts in channel: {channel_id}')
+            channel = await self.fetch_channel(channel_id)    
+            async for message in channel.history(after=start_date):
+                ### Check reacts on each message in the history
+                for r in message.reactions:
+                    ### Check if message has a single alpha react
+                    ### Check if message has already been sent as alpha
+                    ### Check if message is already pending alpha
+                    if (self._check_custom_react(r, n=threshold, react_id=ALPHA_REACT_ID)) and \
+                        (message.id not in self.all_sent_alpha) and \
+                        (message.id not in self.pending_alpha):
+                        logger.info('Found one with an ALPHA!')
+                        self.pending_alpha[message.id] = {'channel_id': message.channel.id}
+
+            run_time = time.time() - start_time
+            logger.info(f'Checked for new messages with alpha reacts in channel: {channel_id} in {run_time:1f}s')
+
+        run_time = time.time() - start_time
+        logger.info(f'Checked for new messages in all channels in {run_time:1f}')
 
     @tasks.loop(seconds=CHECK_PENDING_ALPHA_INTERVAL)  # task runs every 60 seconds
     async def check_all_alpha_messages(self, threshold=LAYER_2_ALPHA_THRESHOLD):
@@ -108,6 +116,10 @@ class FormsClient(discord.Client):
             self.pending_alpha.pop(message_id)
 
     @check_recent_messages_task.before_loop
+    async def before_my_task(self):
+        await self.wait_until_ready()  # wait until the bot logs in
+
+    @check_all_alpha_messages.before_loop
     async def before_my_task(self):
         await self.wait_until_ready()  # wait until the bot logs in
 
