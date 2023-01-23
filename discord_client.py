@@ -81,13 +81,14 @@ class FormsClient(discord.Client):
             logger.info(f'Checked for new messages with alpha reacts in channel: {channel_id} in {run_time:1f}s')
 
         run_time = time.time() - start_time
-        logger.info(f'Checked for new messages in all channels in {run_time:1f}')
+        logger.info(f'Checked for new messages in all channels in {run_time:1f}s')
 
     @tasks.loop(seconds=CHECK_PENDING_ALPHA_INTERVAL)  # task runs every 60 seconds
     async def check_all_alpha_messages(self, threshold=LAYER_2_ALPHA_THRESHOLD):
         ### Check for new messages with alpha reacts
         ### Check messages that had alpha reacts before to see if any broke threshold
-        logger.info('Checking messages with alpha reacts')
+        logger.info(f'Checking all pending alpha ({len(self.pending_alpha)} messages)')
+        start_time = time.time()
         messages_to_remove = []
         ### Check messages that had alpha reacts before to see if any broke threshold
         ### Messages only added to pending_alpha if they haven't been quoted before
@@ -114,6 +115,9 @@ class FormsClient(discord.Client):
             
         for message_id in messages_to_remove:
             self.pending_alpha.pop(message_id)
+
+        run_time = time.time() - start_time
+        logger.info(f'Checked all pending alpha in {run_time:1f}s')
 
     @check_recent_messages_task.before_loop
     async def before_my_task(self):
