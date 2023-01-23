@@ -40,27 +40,27 @@ async def on_ready():
 async def tip(ctx, username, amount: int):
     """Sets current channel to the guild's notification channel."""
     member = await bot.member_converter.convert(ctx, username)
-    print(member)
-    tipped_user_id = member.id
+    tipped_user_id_str = str(member.id)
+    author_id_str = str(ctx.message.author.id)
     
-    if ctx.message.author.id not in bot.forms_points:
+    if author_id_str not in bot.forms_points:
         await ctx.send(f'User {ctx.message.author} has no points.')
         return None
-    elif bot.forms_points[ctx.message.author.id] < amount:
+    elif bot.forms_points[author_id_str] < amount:
         await ctx.send(f'User {ctx.message.author} has insufficient points.')
         return None
     else:
-        bot.forms_points[ctx.message.author.id] = bot.forms_points.get(tipped_user_id, 0) - amount
-        bot.forms_points[tipped_user_id] = bot.forms_points.get(tipped_user_id, 0) + amount
-        await ctx.send(f'User {ctx.message.author} sent {amount} to {tipped_user_id}.')
+        bot.forms_points[author_id_str] = bot.forms_points.get(author_id_str, 0) - amount
+        bot.forms_points[tipped_user_id_str] = bot.forms_points.get(tipped_user_id_str, 0) + amount
+        await ctx.send(f'User {ctx.message.author.name} sent {amount} to {member.name}.')
         bot._export_forms_points()
 
 @bot._bot.hybrid_command(name='give', description='Give form points to self')
 async def give(ctx, amount: int):
-    author_id = ctx.message.author.id
+    author_id = str(ctx.message.author.id)
     author_name = ctx.message.author.name
     bot.forms_points[author_id] = bot.forms_points.get(author_id, 0) + amount
-    await ctx.send(f'User {author_name} sent {amount} to {author_id}.')
+    await ctx.send(f'User {author_name} sent {amount} to {author_name}.')
 
     bot._export_forms_points()
 
@@ -75,7 +75,6 @@ async def check_leaderboards(ctx):
     leader_board = sorted(bot.forms_points.items(), key=lambda x: x[1])
     leader_board_str = ''
     for user, score in leader_board:
-        print(user, score)
         user_obj = await ctx.guild.fetch_member(user)
         username = user_obj.name
         leader_board_str += f'{username}: {score} \n'
