@@ -1,3 +1,4 @@
+import functools
 import time
 import traceback
 import openai
@@ -11,7 +12,7 @@ from discord.ext import commands
 from local_settings import DISCORD_TOKEN, OPENAI_API_KEY
 import logging
 from filelock import FileLock
-from oa_api import _get_gpt_response
+from oa_api import _get_gpt_prompt, _get_gpt_response
 
 lock = FileLock("data/forms_points.json.lock")
 
@@ -118,26 +119,72 @@ async def on_message(message):
                     except:
                         print(f'Could not find user with id {user_id} in guild {ctx.guild.name}.')
                 await ctx.send(f'LEADERBOARD: \n\n {leader_board_str}')
+
+            elif args[0] == 'cleared_prompt':
+                prompt = _get_gpt_prompt(" ".join(args[1:]), '', base_wavey=False)
+                await message.channel.send(f'NOT WAVEY: Generating response with no additional prompting and temperature {bot.temperature}. \n`{prompt}`')
+                async with ctx.typing():
+                    func = functools.partial(
+                        _get_gpt_response, 
+                        prompt=prompt, 
+                        temperature=bot.temperature, 
+                        max_length=bot.max_length
+                    )
+
+                    lines = await bot._bot.loop.run_in_executor(None, func)
+
+
+                    for idx, line in enumerate(lines):
+                        if idx == 0:
+                            last_msg = await message.channel.send(line, reference=message)
+                        else:
+                            last_msg = await message.channel.send(line, reference=last_msg)
+
+            elif args[0] == 'cleared_prompt_n_messages':
+                n_messages = int(args[1])
+                previous_messages_str = await _get_previous_messages(message.channel, n_messages=n_messages)
+                prompt = _get_gpt_prompt(" ".join(args[1:]), previous_messages_str, base_wavey=False)
+                await message.channel.send(f'NOT WAVEY: Generating response including last {n_messages} messages and temperature {bot.temperature}. \n`{prompt}`')
+                async with ctx.typing():
+                    func = functools.partial(
+                        _get_gpt_response, 
+                        prompt=prompt, 
+                        temperature=bot.temperature, 
+                        max_length=bot.max_length
+                    )
+
+                    lines = await bot._bot.loop.run_in_executor(None, func)
+
+
+                    for idx, line in enumerate(lines):
+                        if idx == 0:
+                            last_msg = await message.channel.send(line, reference=message)
+                        else:
+                            last_msg = await message.channel.send(line, reference=last_msg)
             ### This is a command
             else:
-                previous_messages_str = await _get_previous_messages(
-                    message.channel,
-                    n_messages=10,
-                    n_characters=500
-                )
-                print(f'Generating response to {message.clean_content} with temperature {bot.temperature}')
-                lines = _get_gpt_response(
-                    question=message.clean_content, 
-                    previous_messages_str=previous_messages_str,
-                    temperature=bot.temperature,
-                    max_length=bot.max_length
-                )
+                async with ctx.typing():
+                    previous_messages_str = await _get_previous_messages(
+                        message.channel,
+                        n_messages=10,
+                        n_characters=500
+                    )
+                    prompt = _get_gpt_prompt(message.clean_content, previous_messages_str, base_wavey=True)
 
-                for idx, line in enumerate(lines):
-                    if idx == 0:
-                        last_msg = await message.channel.send(line, reference=message)
-                    else:
-                        last_msg = await message.channel.send(line, reference=last_msg)
+                    print(f'Generating response to {message.clean_content} with temperature {bot.temperature}')
+                    func = functools.partial(
+                        _get_gpt_response,
+                        prompt=prompt,
+                        temperature=bot.temperature,
+                        max_length=bot.max_length
+                    )
+                    lines = await bot._bot.loop.run_in_executor(None, func)
+
+                    for idx, line in enumerate(lines):
+                        if idx == 0:
+                            last_msg = await message.channel.send(line, reference=message)
+                        else:
+                            last_msg = await message.channel.send(line, reference=last_msg)
 
         elif message.author != bot._bot.user:
             
