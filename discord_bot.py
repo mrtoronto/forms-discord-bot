@@ -49,11 +49,11 @@ async def on_message(message):
         previous_messages = message.channel.history(limit=10)
         previous_messages_list = []
         async for history_message in previous_messages:
-            proc_message = history_message.content.strip()
+            proc_message = history_message.clean_content.strip()
             previous_messages_list.append(f'{message.author.name}: {proc_message}')
         previous_messages_list = previous_messages_list[::-1]
         previous_messages_str = '\n'.join(previous_messages_list)[-500:]
-        lines = _get_gpt_response(message.content, previous_messages_str)
+        lines = _get_gpt_response(message.clean_content, previous_messages_str)
 
         for idx, line in enumerate(lines):
             await message.channel.send(line)
@@ -118,7 +118,7 @@ async def wavey(ctx, *, args):
     previous_messages = ctx.channel.history(limit=10)
     previous_messages_list = []
     async for message in previous_messages:
-        proc_message = message.content.strip()
+        proc_message = message.clean_content.strip()
         previous_messages_list.append(f'{message.author.name}: {proc_message}')
     previous_messages_list = previous_messages_list[::-1]
     previous_messages_str = '\n'.join(previous_messages_list)[-500:]
