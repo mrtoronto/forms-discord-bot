@@ -11,6 +11,7 @@ from discord.ext import commands
 from local_settings import DISCORD_TOKEN, OPENAI_API_KEY
 import logging
 from filelock import FileLock
+from oa_api import _get_gpt_response
 
 lock = FileLock("data/forms_points.json.lock")
 
@@ -31,6 +32,9 @@ class FormsBot:
 
         self.member_converter = commands.MemberConverter()
 
+        self.temperature = 0.7
+        self.max_length = 300
+
     def _export_forms_points(self):
         with lock:
             with open('data/forms_points.json', 'w') as f:
@@ -43,20 +47,116 @@ async def on_ready():
     logger.info(f'Logged in as {bot._bot.user} (ID: {bot._bot.user.id})')
     logger.info('------')
 
+async def _get_previous_messages(channel, n_messages=10, n_characters=500):
+    previous_messages = channel.history(limit=n_messages)
+    previous_messages_list = []
+    async for history_message in previous_messages:
+        proc_message = history_message.clean_content.strip()
+        previous_messages_list.append(f'{history_message.author.name}: {proc_message}')
+    previous_messages_list = previous_messages_list[::-1]
+    previous_messages_str = '\n'.join(previous_messages_list)[-n_characters:]
+
+    return previous_messages_str
+
+
 @bot._bot.event
 async def on_message(message):
-    if bot._bot.user in message.mentions and message.author != bot._bot.user:
-        previous_messages = message.channel.history(limit=10)
-        previous_messages_list = []
-        async for history_message in previous_messages:
-            proc_message = history_message.clean_content.strip()
-            previous_messages_list.append(f'{message.author.name}: {proc_message}')
-        previous_messages_list = previous_messages_list[::-1]
-        previous_messages_str = '\n'.join(previous_messages_list)[-500:]
-        lines = _get_gpt_response(message.clean_content, previous_messages_str)
+    ctx = await bot._bot.get_context(message)
+    if bot._bot.user in message.mentions:
+        if message.clean_content.split(' ')[0] == f'@{bot._bot.user.name}':
+            args = message.clean_content.split(' ')[1:]
 
-        for idx, line in enumerate(lines):
-            await message.channel.send(line)
+            if args[0] == 'set_temperature':
+                bot.temperature = float(args[1])
+                await message.channel.send(f'Set temperature to {bot.temperature}')
+            elif args[0] == 'get_temperature':
+                await message.channel.send(f'Temperature currently set to {bot.temperature}')
+            elif args[0] == 'set_max_length':
+                bot.max_length = int(args[1])
+                await message.channel.send(f'Set max response length to {bot.max_length} tokens')
+            elif args[0] == 'get_max_length':
+                await message.channel.send(f'Max length currently set to {bot.max_length} tokens')
+            elif args[0] == 'give':
+                sending_name = message.author.name
+                sending_member = await bot.member_converter.convert(ctx, sending_name)
+                sending_member_id_str = str(sending_member.id)
+                amount = float(args[1])
+                bot.forms_points[sending_member_id_str] = bot.forms_points.get(sending_member_id_str, 0) + amount
+                await ctx.send(f'User {sending_name} sent {amount} to {sending_name}.')
+                bot._export_forms_points()
+
+            elif args[0] == 'tip': 
+                sending_name = message.author.name
+                sending_member = await bot.member_converter.convert(ctx, sending_name)
+                sending_member_id_str = str(sending_member.id)
+                
+                receiving_member_str = args[1]
+                amount = float(args[2])
+                receiving_member = await bot.member_converter.convert(ctx, receiving_member_str.replace('@', ''))
+                receiving_member_id = str(receiving_member.id)
+                
+                if sending_member_id_str not in bot.forms_points:
+                    await ctx.send(f'User {ctx.message.author} has no points.')
+                    return None
+                elif bot.forms_points[sending_member_id_str] < amount:
+                    await ctx.send(f'User {ctx.message.author} has insufficient points.')
+                    return None
+                else:
+                    bot.forms_points[sending_member_id_str] = bot.forms_points.get(sending_member_id_str, 0) - amount
+                    bot.forms_points[receiving_member_id] = bot.forms_points.get(receiving_member_id, 0) + amount
+                    await ctx.send(f'User {sending_name} sent {amount} to {receiving_member.name}.')
+                    bot._export_forms_points()
+
+            elif args[0] == 'check_leaderboards':
+                leader_board = sorted(bot.forms_points.items(), key=lambda x: x[1])
+                leader_board_str = ''
+                for user_id, score in leader_board:
+                    try:
+                        user_obj = await ctx.guild.fetch_member(int(user_id))
+                        username = user_obj.name
+                        leader_board_str += f'{username}: {score} \n'
+                    except:
+                        print(f'Could not find user with id {user_id} in guild {ctx.guild.name}.')
+                await ctx.send(f'LEADERBOARD: \n\n {leader_board_str}')
+            ### This is a command
+            else:
+                previous_messages_str = await _get_previous_messages(
+                    message.channel,
+                    n_messages=10,
+                    n_characters=500
+                )
+                print(f'Generating response to {message.clean_content} with temperature {bot.temperature}')
+                lines = _get_gpt_response(
+                    question=message.clean_content, 
+                    previous_messages_str=previous_messages_str,
+                    temperature=bot.temperature,
+                    max_length=bot.max_length
+                )
+
+                for idx, line in enumerate(lines):
+                    if idx == 0:
+                        last_msg = await message.channel.send(line, reference=message)
+                    else:
+                        last_msg = await message.channel.send(line, reference=last_msg)
+
+        elif message.author != bot._bot.user:
+            
+            previous_messages_str = await _get_previous_messages(
+                message.channel,
+                n_messages=10,
+                n_characters=500
+            )
+            print(f'Generating response to {message.clean_content} with temperature {bot.temperature}')
+            lines = _get_gpt_response(
+                question=message.clean_content, 
+                previous_messages_str=previous_messages_str,
+                temperature=bot.temperature,
+                max_length=bot.max_length
+            )
+            for idx, line in enumerate(lines):
+                await message.channel.send(line)
+
+    ### This is where we'd add a rare chance for the bot to speak up unprompted
 
 
 
@@ -85,51 +185,27 @@ async def on_member_join(member):
         reason='Creating a private voice channel for the new user'
     )
 
-    
-
-
-
-def _get_gpt_response(question, previous_messages_str):
-    prompt = f"""You are Wavey. A cheeky, sarcastic but caring robot tasked with helping the people of the Forms Server after making them laugh a bit. 
-
-You have been asked the following question. Before the question you are given some conversation history. Generate a response to the user and don't talk to yourself after.
-
-HISTORY:
-{previous_messages_str}
-
-QUESTION TO RESPOND TO: 
-{question}"""
-
-    print(f'Prompt: \n{prompt}')
-    response = openai.Completion.create(
-        model="text-davinci-003", 
-        prompt=prompt.strip(), 
-        temperature=0.7, 
-        max_tokens=300
-    )
-    lines = response.choices[0].text.split('\n')
-    lines = [l for l in lines if l.strip()]
-    return lines
-
 @bot._bot.hybrid_command(name='wavey', description='Asks a question to the bot')
 async def wavey(ctx, *, args):
     question = args
     print(f'Asking question: {question}')
-    previous_messages = ctx.channel.history(limit=10)
-    previous_messages_list = []
-    async for message in previous_messages:
-        proc_message = message.clean_content.strip()
-        previous_messages_list.append(f'{message.author.name}: {proc_message}')
-    previous_messages_list = previous_messages_list[::-1]
-    previous_messages_str = '\n'.join(previous_messages_list)[-500:]
+    previous_messages_str = await _get_previous_messages(
+        ctx.channel,
+        n_messages=10,
+        n_characters=500
+    )
     try:
-        lines = _get_gpt_response(question, previous_messages_str)
+        lines = _get_gpt_response(
+            question=question, 
+            previous_messages_str=previous_messages_str, 
+            temperature=bot.temperature,
+            max_length=bot.max_length
+        )
         for idx, line in enumerate(lines):
             await ctx.send(line)
     except:
         print(traceback.format_exc())
-    
-    # for line in lines:
+
 
 @bot._bot.hybrid_command(name='tip', description='Sends tip to another user')
 async def tip(ctx, username, amount: int):
