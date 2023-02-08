@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import json
 import random
-import tweepy
+# import tweepy
 import time
 import discord
 from discord.ext import tasks
@@ -31,10 +31,10 @@ class FormsClient(discord.Client):
 
         self.next_token = None
 
-        self.client = tweepy.Client(
-            TWITTER_TOKEN,
-            return_type=dict
-        )
+        # self.client = tweepy.Client(
+        #     TWITTER_TOKEN,
+        #     return_type=dict
+        # )
 
     def _load_forms_points(self):
         with lock:
