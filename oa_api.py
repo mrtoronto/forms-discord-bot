@@ -15,7 +15,8 @@ def _get_gpt_prompt(question, previous_messages_str, base_wavey=True):
     if previous_messages_str:
         prompt += f"History:\n{previous_messages_str}"
 
-    prompt += f"{question}"
+    prompt += f"\n\n{question}"
+    prompt = prompt.strip()
     print(f'Prompt: \n{prompt}')
     return prompt
 
