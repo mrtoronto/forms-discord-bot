@@ -15,13 +15,15 @@ CHECK_PENDING_ALPHA_INTERVAL = 30
 ######## Alpha bot parameters
 
 ### Channel the bot will ping for messages with enough alpha
-ALPHA_CHANNEL_ID = 1045019403701461092
-TWITTER_CHANNEL_ID = 1045019403701461092
 
-CHANNELS_TO_CHECK = [1045019403701461092]
+ALPHA_CHANNEL_ID = 1072962447578763332
+ALPHA_ROLE_CHANNEL_ID = 1072963459681103996
+TWITTER_CHANNEL_ID = 1072624102268993576
+
+CHANNELS_TO_CHECK = [1072543132429864982]
 
 ### Alpha react ID the bot will check for
-ALPHA_REACT_ID = 908989024021118986
+ALPHA_REACT_ID = 'peepo_likes'
 
 ### Number of hours a message has to obtain 
 ### `LAYER_1_ALPHA_THRESHOLD` alpha reacts
@@ -35,6 +37,8 @@ LAYER_1_ALPHA_THRESHOLD = 1
 ### Message will need this many alpha reacts eventually to be
 ### Quoted by the bot
 LAYER_2_ALPHA_THRESHOLD = 1
+
+ALPHA_REACT_THRESHOLD = 1
 
 
 CHECK_TWITTER_INTERVAL = 60

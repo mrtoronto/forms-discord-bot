@@ -30,8 +30,8 @@ def main():
 
     t1 = threading.Thread(target=_run_discord_client, name='discord_client')
     t2 = threading.Thread(target=_run_discord_bot, name='discord_bot')
-    t1.start()
     t2.start()
+    t1.start()
     t1.join()
     t2.join()
 
