@@ -362,13 +362,21 @@ async def _get_wavey_reply(data):
         'text_lines': lines}
     }
 
+def _help(data):
+    return {
+        'reply': {
+            'channel': data['message'].channel, 
+            'text': f'Commands: {", ".join(VALID_ARGS_DICT.keys())}'
+        }
+    }
+
 VALID_ARGS_DICT = {
     'set_temperature': {'f': _set_temperature, 'async': False},
     'get_temperature': {'f': _get_temperature, 'async': False},
     'set_max_length': {'f': _set_max_length, 'async': False},
     'get_max_length': {'f': _get_max_length, 'async': False},
-    'give_forms_points': {'f': _give_forms_points, 'async': True},
-    'tip_forms_points': {'f': _tip_forms_points, 'async': True},
+    'give': {'f': _give_forms_points, 'async': True},
+    'tip': {'f': _tip_forms_points, 'async': True},
     'send_message_to_channel': {'f': _send_message_to_channel, 'async': True},
     'send_embed_to_channel': {'f': _send_embed_to_channel, 'async': True},
     'send_message_as_quote': {'f': _send_message_as_quote, 'async': True},
@@ -377,7 +385,10 @@ VALID_ARGS_DICT = {
     'cleared_prompt': {'f': _cleared_prompt, 'async': True},
     'get_prompt': {'f': _get_prompt, 'async': True},
     'get_wavey_reply': {'f': _get_wavey_reply, 'async': True},
+    'bot_help': {'f': _help, 'async': False},
 }
+
+
 
 async def _process_wavey_command(bot,message, args):
     team_role = discord.utils.get(message.author.roles, name='Team')
@@ -392,34 +403,12 @@ async def _process_wavey_command(bot,message, args):
         'GWP': GWP,
         'prompt_type': 'command'
     }
-    if args[0] in VALID_ARGS:
+    if args[0] in VALID_ARGS_DICT:
         wavey_reply = {}
-        if args[0] == 'set_temperature':
-            return _set_temperature(wavey_input_data)
-        elif args[0] == 'get_temperature':
-            return _get_temperature(wavey_input_data)
-        elif args[0] == 'set_max_length':
-            return _set_max_length(wavey_input_data)
-        elif args[0] == 'get_max_length':
-            return _get_max_length(wavey_input_data)
-        elif args[0] == 'give':
-            return await _give_forms_points(wavey_input_data)
-        elif args[0] == 'tip': 
-            return await _tip_forms_points(wavey_input_data)
-        elif args[0] == 'send_message_to_channel':
-            return await _send_message_to_channel(wavey_input_data)
-        elif args[0] == 'send_embed_to_channel':
-            return await _send_embed_to_channel(wavey_input_data)
-        elif args[0] == 'send_message_as_quote':
-            return await _send_message_as_quote(wavey_input_data)
-        elif args[0] == 'check_leaderboards':
-            return await _check_leaderboards(wavey_input_data)
-        elif args[0] == 'cleared_prompt':
-            return await _cleared_prompt(wavey_input_data)
-        elif args[0] == 'cleared_prompt_n_messages':
-            return await _cleared_prompt_n_messages(wavey_input_data)
-        elif args[0] == 'get_prompt':
-            return await _get_prompt(wavey_input_data)
+        if VALID_ARGS_DICT[args[0]]['async']:
+            return await VALID_ARGS_DICT[args[0]]['f'](wavey_input_data)
+        else:
+            return VALID_ARGS_DICT[args[0]]['f'](wavey_input_data)
 
     else:
         print(f'Invalid wavey command: {args[0]}')
