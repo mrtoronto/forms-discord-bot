@@ -1,4 +1,5 @@
 import functools
+import re
 import time
 import traceback
 import openai
@@ -14,7 +15,7 @@ import logging
 from filelock import FileLock
 import config_parameters as config
 from string import punctuation
-from process_wavey_commands import _process_wavey_command, _process_wavey_mention
+from process_wavey_commands import _process_wavey_command, _process_wavey_mention, _try_converting_mentions
 
 lock = FileLock("data/forms_points.json.lock")
 
@@ -34,7 +35,7 @@ class FormsBot:
         )
 
         self.pending_alpha = {}
-        self.sent_alpha = {}
+        self.sent_alpha = {1073324858575945748: True}
 
         self.GWP = {
             'temperature': 0.7,
@@ -51,43 +52,71 @@ class FormsBot:
 bot = FormsBot()
 
 @bot._bot.event
-async def on_reaction_add(reaction, user):
-    if reaction.is_custom_emoji() and reaction.emoji.name == config.ALPHA_REACT_ID:
-        if reaction.message.id in bot.sent_alpha:
+async def on_raw_reaction_remove(payload):
+    channel = await bot._bot.fetch_channel(payload.channel_id)
+    message = await channel.fetch_message(payload.message_id)
+    user = await message.guild.fetch_member(payload.user_id)
+    emoji = payload.emoji
+    if payload.message_id == 1073324858575945748:
+        reacted_user_ids = set()
+        logger.info(f'Reacted')
+        for reaction in message.reactions:
+            reacted_users = reaction.users()
+            async for reacting_user in reacted_users:
+                reacted_user_ids.add(reacting_user.id)
+
+        if user.id not in reacted_user_ids:
+        
+            alpha_role = message.guild.get_role(1073331675397898281)
+            print(f'Removing alpha role from {user.name}')
+            await user.remove_roles(alpha_role)
+
+@bot._bot.event
+async def on_raw_reaction_add(payload):
+    channel = await bot._bot.fetch_channel(payload.channel_id)
+    message = await channel.fetch_message(payload.message_id)
+    user = await message.guild.fetch_member(payload.user_id)
+    emoji = payload.emoji
+    if payload.message_id == 1073324858575945748:
+        logger.info(f'Reacted')
+        alpha_role = user.get_role(1073331675397898281)
+        if alpha_role:
+            logger.info(f'User {user.name} already has alpha role')
+            return
+        else:
+            alpha_role = message.guild.get_role(1073331675397898281)
+            logger.info(f'Giving alpha role to {user.name}')
+            await user.add_roles(alpha_role)
+    elif emoji.is_custom_emoji() and emoji.name in config.ALPHA_REACT_IDS:
+        if message.id in bot.sent_alpha:
             return
         
-        if reaction.message.id in bot.pending_alpha:
-            bot.pending_alpha[reaction.message.id] += 1
+        if message.id in bot.pending_alpha:
+            bot.pending_alpha[message.id] += 1
         
         else:
-            bot.pending_alpha[reaction.message.id] = 1
+            bot.pending_alpha[message.id] = 1
 
-        if bot.pending_alpha[reaction.message.id] >= config.ALPHA_REACT_THRESHOLD:
-            team_role = discord.utils.get(reaction.message.guild.roles, name='Team')
+        if bot.pending_alpha[message.id] >= config.ALPHA_REACT_THRESHOLD:
+            alpha_role = discord.utils.get(message.guild.roles, name='Alpha')
             ALPHA_CHANNEL = await bot._bot.fetch_channel(config.ALPHA_CHANNEL_ID)
             embed = discord.Embed(
-                title=f'Alpha from {reaction.author.name}',
-                description=f'{reaction.message.content}\n\n{reaction.message.created_at:%Y / %m / %d %I:%M}',
-                color=0x00ff00,
-                url = reaction.message.jump_url
+                title=f'Alpha from @{message.author.name}',
+                description=f'{message.content}\n\n{message.created_at:%Y / %m / %d %I:%M}',
+                color=0xA429D6,
+                url = message.jump_url
             )
             
             await ALPHA_CHANNEL.send(
-                f'{team_role.mention} {reaction.message.author.mention}', 
+                f'{alpha_role.mention} {message.author.mention}', 
                 embed=embed
             )
-            bot.sent_alpha[reaction.message.id] = True
+            bot.sent_alpha[message.id] = True
 
-            await reaction.message.channel.send(
-                f'{reaction.author.mention} Thank you for your contribution to the Alpha!',
-                reference=reaction.message
+            await message.channel.send(
+                f'{message.author.mention} Thank you for your contribution to the Alpha!',
+                reference=message
             )
-
-
-    # elif reaction.message.channel.id == config.REACT_ROLE_CHANNEL_ID:
-    #     if reaction.emoji == '':
-    #         user.add_roles(1072963459681103996)
-    
     return
 
 @bot._bot.event
@@ -99,7 +128,7 @@ async def _send_lines(lines, message):
     for idx, line in enumerate(lines):
         line = line.replace('Wavey: ', '')
         line = line.strip(punctuation).strip()
-        line.strip()
+        line = await _try_converting_mentions(line, message, bot)
         if idx == 0:
             last_msg = await message.channel.send(
                 line, reference=message
@@ -120,6 +149,7 @@ async def _process_wavey_reply(wavey_reply, message, ctx):
             if 'text' in value:
                 channel_to_send = value['channel']
                 reply_text = value['text']
+                reply_text = await _try_converting_mentions(reply_text, message, bot)
                 await channel_to_send.send(
                     reply_text,
                     file=value.get('file'),

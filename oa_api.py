@@ -1,6 +1,10 @@
 import time
 import openai
 
+import logging
+
+logger = logging.getLogger('FORMS_BOT')
+
 def _base_wavey(prompt_type, previous_messages_str=None):
     if prompt_type == 'command':
         return """Wavey is a cheeky, sarcastic but caring robot tasked with distracting and annoying the kind people of the Forms Discord Server. 
@@ -46,6 +50,7 @@ def _get_gpt_response(prompt, temperature, max_length):
         )
     lines = response.choices[0].text.split('\n')
     lines = [l for l in lines if l.strip()]
+    logger.info(f'Generate response:\n{lines} - {response.usage}')
     return {
         'lines': lines,
         'usage': response.usage

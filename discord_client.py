@@ -1,3 +1,4 @@
+import pytz
 from datetime import datetime, timedelta
 import json
 import random
@@ -45,9 +46,15 @@ class FormsClient(discord.Client):
         ### Checks one channel for alpha now. Could be updated to check a list of channels or all
         self.check_twitter.start()
 
-        ### Used when bot sends a message about alpha
-        self.ALPHA_CHANNEL = await self.fetch_channel(ALPHA_CHANNEL_ID)
         self.TWITTER_CHANNEL = await self.fetch_channel(TWITTER_CHANNEL_ID)
+
+        twitter_channel_history = self.TWITTER_CHANNEL.history(limit=50)
+        async for message in twitter_channel_history:
+            
+            tweet_id = message.embeds[0].url.split('/')[-1]
+            self.past_tweet_ids.append(tweet_id)
+
+        logger.info(f'Found {len(self.past_tweet_ids)} tweets in history.. Saving to past tweets.')
 
     async def on_ready(self):
         logger.info(f'Logged in as {self.user} (ID: {self.user.id})')
@@ -66,48 +73,49 @@ class FormsClient(discord.Client):
             tweet_fields=['attachments', 'public_metrics', 'created_at', 'author_id'],
             user_fields=['profile_image_url', 'username'],
             media_fields=['url', 'preview_image_url'], 
-            max_results=5,
+            max_results=15,
             pagination_token=self.next_token
         )
         next_token = result['meta']['next_token']
         tweet_data = result['data']
         user_data = result['includes']['users']
 
-        try:
-            media_data = result['includes']['media']
-        except:
-            media_data = []
-
         tweet_data = sorted(tweet_data, key=lambda x: x['created_at'])
         for tweet in tweet_data:
             if tweet['id'] in self.past_tweet_ids:
                 continue
-
-            author_id = tweet['author_id']
-            if 'attachments' in tweet:
-                try:
-                    media_key = tweet['attachments']['media_keys'][0]
-                    media_tweet = [i for i in media_data if i['media_key'] == media_key][0]
-                except:
-                    media_tweet = {}
-
-            else:
-                media_tweet = {}
-
+            author_id = tweet['author_id']            
             user = [i for i in user_data if i['id'] == author_id][0]
             user_img = user['profile_image_url']
+            sent_at = datetime.strptime(tweet['created_at'], "%Y-%m-%dT%H:%M:%S.%fZ")
+            sent_at = sent_at.replace(tzinfo=pytz.UTC)
+            if tweet['text'][0:2] == 'RT':
+                original_poster = tweet['text'].split('RT')[1].split(':')[0].strip()
+                title = f"@{user['username']} retweeted {original_poster}"
+            else:
+                title = f"@{user['username']} tweeted"
             embed = discord.Embed(
-                title=f"Tweet from @{user['username']}", 
+                title=title,
                 url=f"https://twitter.com/{user['username']}/status/{tweet['id']}",
-                description=f"{tweet['text']}\n\n[forms friends list](https://twitter.com/i/lists/1623371721813200932)", 
-                timestamp=datetime.strptime(tweet['created_at'], "%Y-%m-%dT%H:%M:%S.%fZ"),
+                description=f"{tweet['text']}\n\n[forms friends](https://twitter.com/i/lists/1623371721813200932)\n\n", 
                 colour=random.choice(embed_colors)
             )
             if user_img:
                 embed.set_thumbnail(url=user_img)
+            embed.add_field(
+                name=f'',
+                value=f'Twitter • <t:{int(sent_at.timestamp())}:R>',
+                inline=False
+            )
+            file = discord.File("twitter_logo.png", filename="twitter_logo.png")
+            embed.set_footer(
+                text="\u200b",
+                icon_url="attachment://twitter_logo.png"
+            )
             
             await self.TWITTER_CHANNEL.send(
-                embed=embed
+                embed=embed,
+                file=file
             )
             
             self.past_tweet_ids.append(tweet['id'])

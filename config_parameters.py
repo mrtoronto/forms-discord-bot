@@ -23,7 +23,8 @@ TWITTER_CHANNEL_ID = 1072624102268993576
 CHANNELS_TO_CHECK = [1072543132429864982]
 
 ### Alpha react ID the bot will check for
-ALPHA_REACT_ID = 'peepo_likes'
+# ALPHA_REACT_ID = 'peepo_likes'
+ALPHA_REACT_IDS = ['ALPHA', 'ALPHA_static']
 
 ### Number of hours a message has to obtain 
 ### `LAYER_1_ALPHA_THRESHOLD` alpha reacts

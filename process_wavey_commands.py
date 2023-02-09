@@ -1,9 +1,11 @@
-
+import logging
 import asyncio
 import functools
+import re
 
 import discord
 from oa_api import _get_gpt_prompt, _get_gpt_response
+logger = logging.getLogger('FORMS_BOT')
 
 VALID_ARGS = [
     'set_temperature',
@@ -21,13 +23,39 @@ VALID_ARGS = [
     'send_embed_to_channel',
 ]
 
+async def _try_converting_mentions(text, message, bot):
+    ### Check for regex patterns like @USERNAME
+    mentions = re.findall(r'(^|\s)@(\w+)', text)
+    for mention in mentions:
+        try:
+            print(f'Converting {mention.name} to member')
+            member = await bot.member_converter.convert(message, mention)
+            text = text.replace(f'@{mention}', f'<@{member.id}>')
+            print(f'Converted {mention} to member')
+        except:
+            pass
+    return text
 
-async def _get_previous_messages(channel, n_messages=10, n_characters=500):
+
+async def _replace_mentions(body, message, bot):
+
+    mentioned_users = message.mentions
+    if mentioned_users:
+        body = body.replace(f'@{mentioned_users[0].name}', f'<@{mentioned_users[0].id}>')
+    mentioned_channels = message.channel_mentions
+    if mentioned_channels:
+        body = body.replace(f'#{mentioned_channels[0].name}', f'<#{mentioned_channels[0].id}>')
+    body = await _try_converting_mentions(body, message, bot)
+    return body
+
+
+async def _get_previous_messages(channel, bot, n_messages=20, n_characters=1000):
     previous_messages = channel.history(limit=n_messages)
     previous_messages_list = []
     async for history_message in previous_messages:
         proc_message = history_message.clean_content.strip()
-        previous_messages_list.append(f'{history_message.author.name}: {proc_message}')
+        proc_message = await _replace_mentions(proc_message, history_message, bot)
+        previous_messages_list.append(f'<@{history_message.author.id}>: {proc_message}')
     previous_messages_list = previous_messages_list[::-1]
     previous_messages_str = '\n'.join(previous_messages_list)[-n_characters:]
 
@@ -42,7 +70,6 @@ async def _give_forms_points(wavey_input_data):
     sending_member_id_str = str(sending_member.id)
     amount = float(wavey_input_data['args'][1])
     forms_points_dict[sending_member_id_str] = forms_points_dict.get(sending_member_id_str, 0) + amount
-    # await ctx.send(f'User {sending_name} sent {amount} to {sending_name}.')
     return {
         'forms_points_dict': forms_points_dict, 
         'reply': {'channel': wavey_input_data['message'].channel, 'text': f'User {sending_name} sent {amount} to {sending_name}.'
@@ -66,7 +93,6 @@ async def _tip_forms_points(wavey_input_data):
     else:
         forms_points_dict[sending_member_id_str] = forms_points_dict.get(sending_member_id_str, 0) - amount
         forms_points_dict[receiving_member_id] = forms_points_dict.get(receiving_member_id, 0) + amount
-        # await ctx.send(f'User {sending_name} sent {amount} to {receiving_member.name}.')
     return {'forms_points_dict': forms_points_dict, 'reply': {'channel': wavey_input_data["message"].channel, 'text': f'User {sending_name} sent {amount} to {receiving_member.name}.'}}
 
 def _set_temperature(wavey_input_data):
@@ -130,9 +156,13 @@ async def _send_message_to_channel(wavey_input_data):
             image = await wavey_input_data['message'].attachments[0].to_file()
         else:
             image = None
+        message_text = " ".join(wavey_input_data["args"][2:])
+        
+        message_text = await _replace_mentions(message_text, wavey_input_data['message'], wavey_input_data['bot'])
+        
         return {'reply': {
                 'channel': channel, 
-                'text': " ".join(wavey_input_data["args"][2:]),
+                'text': message_text,
                 'file': image
             }
         }
@@ -162,12 +192,16 @@ async def _send_embed_to_channel(wavey_input_data):
     if wavey_input_data['args'][1] == 'here':
         channel = wavey_input_data['message'].channel
         channel_id = channel.id
-    
-    full_text = " ".join(wavey_input_data["args"][2:])
-    title = full_text.split('title:')[1].split('`')[1]
-    body = wavey_input_data['message'].content.split('body:')[1].split('`')[1]
-    link = full_text.split('link:')[1].split('`')[1]
 
+    full_text = wavey_input_data["message"].clean_content
+    title = full_text.split('title:')[1].split('<END>')[0]
+    body = full_text.split('body:')[1].split('<END>')[0]
+    if 'link: ' in full_text:
+        link = full_text.split('link:')[1].split('<END>')[1]
+    else:
+        link = None
+    
+    body = await _replace_mentions(body, wavey_input_data['message'], wavey_input_data['bot'])
     if wavey_input_data['message'].attachments:
         image_url = wavey_input_data['message'].attachments[0].url
     else:
@@ -179,7 +213,7 @@ async def _send_embed_to_channel(wavey_input_data):
             title=title,
             description=body,
             url=link,
-            color=0x00ff00
+            color=0xA429D6
         )
         if image_url:
             embed.set_image(url=image_url)
@@ -214,6 +248,9 @@ async def _send_message_as_quote(wavey_input_data):
         return {'reply': {'channel': wavey_input_data['message'].channel, 'text': f'Could not find message with id {message_id}'}}
     
     else:
+        message_text = " ".join(wavey_input_data["args"][2:])
+        message_text = await _replace_mentions(message_text, wavey_input_data['message'], wavey_input_data['bot'])
+
         if wavey_input_data["message"].attachments:
             image = await wavey_input_data["message"].attachments[0].to_file()
         else:
@@ -222,7 +259,7 @@ async def _send_message_as_quote(wavey_input_data):
         try:
             return {'reply': {
                     'channel': channel,
-                    'text': " ".join(wavey_input_data["args"][2:]),
+                    'text': message_text,
                     'file': image,
                     'reference': referenced_message
                 }
@@ -268,7 +305,7 @@ async def _cleared_prompt_n_messages(data):
             }
         }
     n_messages = int(data['args'][1])
-    previous_messages_str = await _get_previous_messages(data['message'].channel, n_messages=n_messages)
+    previous_messages_str = await _get_previous_messages(data['message'].channel, data['bot'], n_messages=n_messages)
     prompt = _get_gpt_prompt(" ".join(data['args'][1:]), previous_messages_str, base_wavey=False)
     await data['message'].channel.send(
         f'NOT WAVEY: Generating response including last {n_messages} messages and temperature {data["GWP"]["temperature"]}. \n`{prompt}`'
@@ -322,10 +359,13 @@ async def _get_prompt(data):
         return {'reply': {'channel': data['message'].channel, 'text': 'No team role set.'}}
     previous_messages_str = await _get_previous_messages(
         data['message'].channel,
+        data['bot'],
         n_messages=10,
         n_characters=500
     )
-    prompt = _get_gpt_prompt(data['message'].clean_content, previous_messages_str, base_wavey=True)
+    user_submitted_prompt = data['message'].content
+    user_submitted_prompt = await _replace_mentions(user_submitted_prompt, data['message'])
+    prompt = _get_gpt_prompt(user_submitted_prompt, previous_messages_str, base_wavey=True)
 
     return {
         'reply': {
@@ -337,11 +377,12 @@ async def _get_prompt(data):
 async def _get_wavey_reply(data):
     previous_messages_str = await _get_previous_messages(
         data['message'].channel,
+        data['bot'],
         n_messages=10,
         n_characters=500
     )
     prompt = _get_gpt_prompt(
-        data['message'].clean_content, 
+        data['message'].content, 
         previous_messages_str, 
         base_wavey=True,
         prompt_type=data['prompt_type']
@@ -355,7 +396,7 @@ async def _get_wavey_reply(data):
         data['GWP']['temperature'],
         data['GWP']['max_length']
     )
-    print(f'Generated response to {data["message"].clean_content} with temperature {data["GWP"]["temperature"]} using {gpt_output["usage"]}')
+    logger.info(f'Generated response to {data["message"].clean_content} with temperature {data["GWP"]["temperature"]} using {gpt_output["usage"]}')
     lines = gpt_output['lines']
     return {'reply': {
         'channel': data['message'].channel, 
@@ -370,6 +411,31 @@ def _help(data):
         }
     }
 
+def _command_help(data):
+    if data['args'][1] not in VALID_ARGS_DICT:
+        return {
+            'reply': {
+                'channel': data['message'].channel,
+                'text': f'Command `{data["args"][1]}` not found.'
+            }
+        }
+    
+    else:
+        if 'help' in VALID_ARGS_DICT[data['args'][1]]:
+            return {
+                'reply': {
+                    'channel': data['message'].channel,
+                    'text': f'Help for command `{data["args"][1]}`: \n{VALID_ARGS_DICT[data["args"][1]]["help"]}'
+                }
+            }
+        else:
+            return {
+                'reply': {
+                    'channel': data['message'].channel,
+                    'text': f'Command `{data["args"][1]}` found but does not have help.'
+                }
+            }
+
 VALID_ARGS_DICT = {
     'set_temperature': {'f': _set_temperature, 'async': False},
     'get_temperature': {'f': _get_temperature, 'async': False},
@@ -377,15 +443,22 @@ VALID_ARGS_DICT = {
     'get_max_length': {'f': _get_max_length, 'async': False},
     'give': {'f': _give_forms_points, 'async': True},
     'tip': {'f': _tip_forms_points, 'async': True},
-    'send_message_to_channel': {'f': _send_message_to_channel, 'async': True},
-    'send_embed_to_channel': {'f': _send_embed_to_channel, 'async': True},
-    'send_message_as_quote': {'f': _send_message_as_quote, 'async': True},
+    'send_message_to_channel': {
+        'f': _send_message_to_channel, 'async': True,
+        'help': 'Send a message to a channel. CHANNEL_ID can be substituted for `here` for debugging.Example: \n`send_message_to_channel CHANNEL_ID MESSAGE`'},
+    'send_embed_to_channel': {
+        'f': _send_embed_to_channel, 'async': True,
+        'help': 'Send an embed to a channel. CHANNEL_ID can be substituted for `here` for debugging. Example: \n`send_embed_to_channel CHANNEL_ID title:TITLE<END> body:BODY<END> link:LINK<END>`'},
+    'send_message_as_quote': {
+        'f': _send_message_as_quote, 'async': True,
+        'help': 'Send a reply to a message. Example: \n`send_message_as_quote MESSAGE_ID MESSAGE`'},
     'check_leaderboards': {'f': _check_leaderboards, 'async': True},
     'cleared_prompt_n_messages': {'f': _cleared_prompt_n_messages, 'async': True},
     'cleared_prompt': {'f': _cleared_prompt, 'async': True},
     'get_prompt': {'f': _get_prompt, 'async': True},
     'get_wavey_reply': {'f': _get_wavey_reply, 'async': True},
     'bot_help': {'f': _help, 'async': False},
+    'command_help': {'f': _command_help, 'async': False},
 }
 
 
