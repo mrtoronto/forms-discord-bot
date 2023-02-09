@@ -143,9 +143,9 @@ async def _process_wavey_reply(wavey_reply, message, ctx):
 @bot._bot.event
 async def on_message(message):
     if bot._bot.user in message.mentions:
+        ctx = await bot._bot.get_context(message)
+        args = message.clean_content.split(' ')[1:]
         if message.clean_content.split(' ')[0] == f'@{bot._bot.user.name}':
-            ctx = await bot._bot.get_context(message)
-            args = message.clean_content.split(' ')[1:]
             async with ctx.typing():
                 wavey_reply = await _process_wavey_command(
                     bot=bot, 
