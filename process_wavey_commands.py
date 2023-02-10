@@ -25,20 +25,21 @@ VALID_ARGS = [
 
 async def _try_converting_mentions(text, message, bot):
     ### Check for regex patterns like @USERNAME
+    logger.info(f'Converting implicit mentions in {text}')
     mentions = re.findall(r'(^|\s)@(\w+)', text)
     for mention in mentions:
         try:
-            print(f'Converting {mention.name} to member')
-            member = await bot.member_converter.convert(message, mention)
-            text = text.replace(f'@{mention}', f'<@{member.id}>')
-            print(f'Converted {mention} to member')
+            logger.info(f'Converting {mention.name} to member')
+            member = await bot.member_converter.convert(mention)
+            text = re.sub(f'@{mention}', f'<@{member.id}>')
+            logger.info(f'Converted {mention} to member')
         except:
             pass
     return text
 
 
 async def _replace_mentions(body, message, bot):
-
+    logger.info(f'Checking for mentions in {body}')
     mentioned_users = message.mentions
     if mentioned_users:
         body = body.replace(f'@{mentioned_users[0].name}', f'<@{mentioned_users[0].id}>')
@@ -49,11 +50,11 @@ async def _replace_mentions(body, message, bot):
     return body
 
 
-async def _get_previous_messages(channel, bot, n_messages=20, n_characters=1000):
+async def _get_previous_messages(channel, bot, n_messages=20, n_characters=500):
     previous_messages = channel.history(limit=n_messages)
     previous_messages_list = []
     async for history_message in previous_messages:
-        proc_message = history_message.clean_content.strip()
+        proc_message = history_message.content.strip()
         proc_message = await _replace_mentions(proc_message, history_message, bot)
         previous_messages_list.append(f'<@{history_message.author.id}>: {proc_message}')
     previous_messages_list = previous_messages_list[::-1]
@@ -66,7 +67,7 @@ async def _give_forms_points(wavey_input_data):
         return {'reply': {'channel': wavey_input_data['message'].channel, 'text': 'No team role set.'}}
     forms_points_dict = wavey_input_data['bot'].forms_points
     sending_name = wavey_input_data['message'].author.name
-    sending_member = await wavey_input_data['bot'].member_converter.convert(wavey_input_data['ctx'], sending_name)
+    sending_member = await wavey_input_data['bot'].member_converter(sending_name)
     sending_member_id_str = str(sending_member.id)
     amount = float(wavey_input_data['args'][1])
     forms_points_dict[sending_member_id_str] = forms_points_dict.get(sending_member_id_str, 0) + amount
@@ -78,7 +79,7 @@ async def _give_forms_points(wavey_input_data):
 async def _tip_forms_points(wavey_input_data):
     forms_points_dict = wavey_input_data['bot'].forms_points
     sending_name = wavey_input_data['message'].author.name
-    sending_member = await wavey_input_data['bot'].member_converter.convert(wavey_input_data['ctx'], sending_name)
+    sending_member = await wavey_input_data['bot'].member_converter.convert(sending_name)
     sending_member_id_str = str(sending_member.id)
     
     receiving_member_str = wavey_input_data['args'][1]
@@ -288,7 +289,7 @@ async def _check_leaderboards(data):
             username = user_obj.name
             leader_board_str += f'{username}: {score} \n'
         except:
-            print(f'Could not find user with id {user_id} in guild {data["ctx"].guild.name}.')
+            logger.info(f'Could not find user with id {user_id} in guild {data["ctx"].guild.name}.')
     return {
         'reply': {
             'channel': data['message'].channel, 
@@ -306,7 +307,12 @@ async def _cleared_prompt_n_messages(data):
         }
     n_messages = int(data['args'][1])
     previous_messages_str = await _get_previous_messages(data['message'].channel, data['bot'], n_messages=n_messages)
-    prompt = _get_gpt_prompt(" ".join(data['args'][1:]), previous_messages_str, base_wavey=False)
+    prompt = _get_gpt_prompt(
+        " ".join(data['args'][1:]), 
+        previous_messages_str, 
+        wavey_discord_id=data['bot']._bot.user.id,
+        base_wavey=False
+    )
     await data['message'].channel.send(
         f'NOT WAVEY: Generating response including last {n_messages} messages and temperature {data["GWP"]["temperature"]}. \n`{prompt}`'
     )
@@ -336,7 +342,7 @@ async def _cleared_prompt(data):
                 'text': 'No team role set.'
             }
         }
-    prompt = _get_gpt_prompt(" ".join(data['args'][1:]), '', base_wavey=False)
+    prompt = _get_gpt_prompt(" ".join(data['args'][1:]), '', wavey_discord_id=data['bot']._bot.user.id, base_wavey=False)
     await data['message'].channel.send(f'NOT WAVEY: Generating response with no additional prompting and temperature {data["GWP"]["temperature"]}. \n`{prompt}`')
     loop = asyncio.get_running_loop()
     gpt_output = await loop.run_in_executor(
@@ -365,7 +371,7 @@ async def _get_prompt(data):
     )
     user_submitted_prompt = data['message'].content
     user_submitted_prompt = await _replace_mentions(user_submitted_prompt, data['message'])
-    prompt = _get_gpt_prompt(user_submitted_prompt, previous_messages_str, base_wavey=True)
+    prompt = _get_gpt_prompt(user_submitted_prompt, previous_messages_str, wavey_discord_id=data['bot']._bot.user.id, base_wavey=True)
 
     return {
         'reply': {
@@ -378,13 +384,14 @@ async def _get_wavey_reply(data):
     previous_messages_str = await _get_previous_messages(
         data['message'].channel,
         data['bot'],
-        n_messages=10,
+        n_messages=20,
         n_characters=500
     )
     prompt = _get_gpt_prompt(
         data['message'].content, 
         previous_messages_str, 
         base_wavey=True,
+        wavey_discord_id=data['bot']._bot.user.id,
         prompt_type=data['prompt_type']
     )
 
@@ -477,18 +484,14 @@ async def _process_wavey_command(bot,message, args):
         'prompt_type': 'command'
     }
     if args[0] in VALID_ARGS_DICT:
-        wavey_reply = {}
         if VALID_ARGS_DICT[args[0]]['async']:
             return await VALID_ARGS_DICT[args[0]]['f'](wavey_input_data)
         else:
             return VALID_ARGS_DICT[args[0]]['f'](wavey_input_data)
 
     else:
-        print(f'Invalid wavey command: {args[0]}')
+        logger.info(f'Invalid wavey command: {args[0]}')
         return await _get_wavey_reply(wavey_input_data)
-
-
-    return wavey_reply
 
 async def _process_wavey_mention(bot, message, args):
     team_role = discord.utils.get(message.author.roles, name='Team')

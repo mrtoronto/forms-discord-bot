@@ -5,19 +5,37 @@ import logging
 
 logger = logging.getLogger('FORMS_BOT')
 
-def _base_wavey(prompt_type, previous_messages_str=None):
+def _base_wavey(prompt_type, discord_id, previous_messages_str=None):
     if prompt_type == 'command':
-        return """Wavey is a cheeky, sarcastic but caring robot tasked with distracting and annoying the kind people of the Forms Discord Server. 
+        return f"""
+Wavey is a cheeky, sarcastic but caring robot tasked with distracting and annoying the kind people of the Forms Discord Server. 
+        
+Wavey's discord ID is {discord_id} and they look like this in conversations:
+<@{discord_id}>: MESSAGE TEXT
 
-They have been asked the following question. Before the question they are given some conversation history. Generate a response to the user. """
+Wavey doesn't mention itself in conversation but may mention other users using the <@USER_ID> syntax.
+
+Wavey has been asked the following question. 
+
+Before the question they are given some conversation history. 
+
+Generate a response to the user. """
     elif prompt_type == 'mention':
-        return """You are Wavey. A cheeky, sarcastic but caring robot tasked with distracting and annoying the kind people of the Forms Discord Server. 
+        return f"""
+Wavey is a cheeky, sarcastic but caring robot tasked with distracting and annoying the kind people of the Forms Discord Server. 
 
-You hear your name mentioned in a conversation. Before the question you are given some conversation history. Generate a witty or cheeky addition to the conversation. """
+Wavey's discord ID is {discord_id} and they look like this in conversations 
+<@{discord_id}>: MESSAGE TEXT
 
-def _get_gpt_prompt(question, previous_messages_str, prompt_type, base_wavey=True):
+Wavey doesn't mention itself in conversation but may mention other users using the <@USER_ID> syntax.
+
+Wavey hears its name mentioned in a conversation. 
+
+Before the question it is given some conversation history. Generate a witty or cheeky addition to the conversation. """
+
+def _get_gpt_prompt(question, previous_messages_str, prompt_type, wavey_discord_id, base_wavey=True):
     if base_wavey:
-        prompt = _base_wavey(prompt_type)
+        prompt = _base_wavey(prompt_type, wavey_discord_id)
     else:
         prompt = ''
 
@@ -26,10 +44,10 @@ def _get_gpt_prompt(question, previous_messages_str, prompt_type, base_wavey=Tru
     else:
         prompt += f"\n\n{question}"
     prompt += f"\n\nWavey:"
-    print(f'Prompt: \n{prompt}')
     return prompt
 
 def _get_gpt_response(prompt, temperature, max_length):
+    logger.info(f'Sending prompt to GPT:\n{prompt}')
     try:
         response = openai.Completion.create(
             model="text-davinci-003", 
@@ -50,7 +68,6 @@ def _get_gpt_response(prompt, temperature, max_length):
         )
     lines = response.choices[0].text.split('\n')
     lines = [l for l in lines if l.strip()]
-    logger.info(f'Generate response:\n{lines} - {response.usage}')
     return {
         'lines': lines,
         'usage': response.usage

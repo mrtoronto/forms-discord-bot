@@ -1,7 +1,3 @@
-import functools
-import re
-import time
-import traceback
 import openai
 
 # Load your API key from an environment variable or secret management service
@@ -127,8 +123,8 @@ async def on_ready():
 async def _send_lines(lines, message):
     for idx, line in enumerate(lines):
         line = line.replace('Wavey: ', '')
-        line = line.strip(punctuation).strip()
-        line = await _try_converting_mentions(line, message, bot)
+        line = line.strip()
+        # line = await _try_converting_mentions(line, message, bot)
         if idx == 0:
             last_msg = await message.channel.send(
                 line, reference=message
@@ -136,8 +132,8 @@ async def _send_lines(lines, message):
         else:
             last_msg = await message.channel.send(
                 line, reference=last_msg
-            )
 
+            )
 async def _process_wavey_reply(wavey_reply, message, ctx):
     for key, value in wavey_reply.items():
         if key == 'GWP':
@@ -149,7 +145,7 @@ async def _process_wavey_reply(wavey_reply, message, ctx):
             if 'text' in value:
                 channel_to_send = value['channel']
                 reply_text = value['text']
-                reply_text = await _try_converting_mentions(reply_text, message, bot)
+                # reply_text = await _try_converting_mentions(reply_text, message, bot)
                 await channel_to_send.send(
                     reply_text,
                     file=value.get('file'),
@@ -177,19 +173,35 @@ async def on_message(message):
         args = message.clean_content.split(' ')[1:]
         if message.clean_content.split(' ')[0] == f'@{bot._bot.user.name}':
             async with ctx.typing():
-                wavey_reply = await _process_wavey_command(
-                    bot=bot, 
-                    message=message, 
-                    args=args
-                )
-                await _process_wavey_reply(wavey_reply, message, ctx)
+                try:
+                    wavey_reply = await asyncio.wait_for(
+                        _process_wavey_command(
+                            bot=bot, 
+                            message=message, 
+                            args=args
+                        ), timeout=60)
+                    await _process_wavey_reply(wavey_reply, message, ctx)
+
+                except asyncio.TimeoutError:
+                    await ctx.send("The command timed out.")
+                
 
 
 
         elif message.author != bot._bot.user:
-            args = message.clean_content.split(' ')
-            wavey_reply = await _process_wavey_mention(bot, message, args)
-            await _process_wavey_reply(wavey_reply, message, ctx)
+            async with ctx.typing():
+                try:
+                    wavey_reply = await asyncio.wait_for(
+                        _process_wavey_command(
+                            bot=bot, 
+                            message=message, 
+                            args=message.clean_content.split(' ')
+                        ), timeout=60)
+                    await _process_wavey_reply(wavey_reply, message, ctx)
+
+                except asyncio.TimeoutError:
+                    await ctx.send("The command timed out.")
+                
             
 
     ### This is where we'd add a rare chance for the bot to speak up unprompted
