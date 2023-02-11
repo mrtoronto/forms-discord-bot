@@ -178,7 +178,8 @@ async def on_message(message):
                         _process_wavey_command(
                             bot=bot, 
                             message=message, 
-                            args=args
+                            args=args,
+                            prompt_type='dan'
                         ), timeout=60)
                     await _process_wavey_reply(wavey_reply, message, ctx)
 
@@ -195,7 +196,8 @@ async def on_message(message):
                         _process_wavey_command(
                             bot=bot, 
                             message=message, 
-                            args=message.clean_content.split(' ')
+                            args=message.clean_content.split(' '),
+                            prompt_type='dan'
                         ), timeout=60)
                     await _process_wavey_reply(wavey_reply, message, ctx)
 
@@ -214,7 +216,7 @@ async def on_member_join(member):
     categories = member.guild.categories
     moderator_role = discord.utils.get(roles, name='Team')
     wavey_role = discord.utils.get(roles, name='Wavey')
-    con_category = discord.utils.get(categories, name='Concierge')
+    con_category = [c for c in categories if c.id == 1072620867835678850][0]
     logger.info(f'Running event on_member_join for {member} with {moderator_role} & {wavey_role} in {con_category}')
 
     user_id = member.id
@@ -233,6 +235,7 @@ async def on_member_join(member):
         position=0,
         reason='Creating a private voice channel for the new user'
     )
+
 
 def _run_discord_bot():
     bot._bot.run(DISCORD_TOKEN)

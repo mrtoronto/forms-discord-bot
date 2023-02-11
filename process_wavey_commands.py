@@ -25,11 +25,9 @@ VALID_ARGS = [
 
 async def _try_converting_mentions(text, message, bot):
     ### Check for regex patterns like @USERNAME
-    logger.info(f'Converting implicit mentions in {text}')
     mentions = re.findall(r'(^|\s)@(\w+)', text)
     for mention in mentions:
         try:
-            logger.info(f'Converting {mention.name} to member')
             member = await bot.member_converter.convert(mention)
             text = re.sub(f'@{mention}', f'<@{member.id}>')
             logger.info(f'Converted {mention} to member')
@@ -39,7 +37,6 @@ async def _try_converting_mentions(text, message, bot):
 
 
 async def _replace_mentions(body, message, bot):
-    logger.info(f'Checking for mentions in {body}')
     mentioned_users = message.mentions
     if mentioned_users:
         body = body.replace(f'@{mentioned_users[0].name}', f'<@{mentioned_users[0].id}>')
@@ -311,7 +308,7 @@ async def _cleared_prompt_n_messages(data):
         " ".join(data['args'][1:]), 
         previous_messages_str, 
         wavey_discord_id=data['bot']._bot.user.id,
-        base_wavey=False
+        prompt_type='cleared'
     )
     await data['message'].channel.send(
         f'NOT WAVEY: Generating response including last {n_messages} messages and temperature {data["GWP"]["temperature"]}. \n`{prompt}`'
@@ -342,7 +339,9 @@ async def _cleared_prompt(data):
                 'text': 'No team role set.'
             }
         }
-    prompt = _get_gpt_prompt(" ".join(data['args'][1:]), '', wavey_discord_id=data['bot']._bot.user.id, base_wavey=False)
+    prompt = _get_gpt_prompt(
+        " ".join(data['args'][1:]), '', 
+        wavey_discord_id=data['bot']._bot.user.id, prompt_type='cleared')
     await data['message'].channel.send(f'NOT WAVEY: Generating response with no additional prompting and temperature {data["GWP"]["temperature"]}. \n`{prompt}`')
     loop = asyncio.get_running_loop()
     gpt_output = await loop.run_in_executor(
@@ -363,15 +362,22 @@ async def _cleared_prompt(data):
 async def _get_prompt(data):
     if not data['team_role']:
         return {'reply': {'channel': data['message'].channel, 'text': 'No team role set.'}}
+    prompt_type = data['args'][1]
     previous_messages_str = await _get_previous_messages(
         data['message'].channel,
         data['bot'],
         n_messages=10,
         n_characters=500
     )
+    prompt_type = data['args'][1]
     user_submitted_prompt = data['message'].content
-    user_submitted_prompt = await _replace_mentions(user_submitted_prompt, data['message'])
-    prompt = _get_gpt_prompt(user_submitted_prompt, previous_messages_str, wavey_discord_id=data['bot']._bot.user.id, base_wavey=True)
+    user_submitted_prompt = await _replace_mentions(user_submitted_prompt, data['message'], data['bot'])
+    prompt = _get_gpt_prompt(
+        user_submitted_prompt, 
+        previous_messages_str, 
+        wavey_discord_id=data['bot']._bot.user.id, 
+        prompt_type=prompt_type
+    )
 
     return {
         'reply': {
@@ -385,12 +391,11 @@ async def _get_wavey_reply(data):
         data['message'].channel,
         data['bot'],
         n_messages=20,
-        n_characters=500
+        n_characters=2000
     )
     prompt = _get_gpt_prompt(
         data['message'].content, 
         previous_messages_str, 
-        base_wavey=True,
         wavey_discord_id=data['bot']._bot.user.id,
         prompt_type=data['prompt_type']
     )
@@ -462,7 +467,7 @@ VALID_ARGS_DICT = {
     'check_leaderboards': {'f': _check_leaderboards, 'async': True},
     'cleared_prompt_n_messages': {'f': _cleared_prompt_n_messages, 'async': True},
     'cleared_prompt': {'f': _cleared_prompt, 'async': True},
-    'get_prompt': {'f': _get_prompt, 'async': True},
+    'get_prompt': {'f': _get_prompt, 'async': True, 'help': 'Get a prompt for the bot. Specify a prompt type after the command. Options are mention, command and general. Example: \n`get_prompt mention`'},
     'get_wavey_reply': {'f': _get_wavey_reply, 'async': True},
     'bot_help': {'f': _help, 'async': False},
     'command_help': {'f': _command_help, 'async': False},
@@ -470,7 +475,7 @@ VALID_ARGS_DICT = {
 
 
 
-async def _process_wavey_command(bot,message, args):
+async def _process_wavey_command(bot, message, args, prompt_type):
     team_role = discord.utils.get(message.author.roles, name='Team')
     ctx = await bot._bot.get_context(message)
     GWP = bot.GWP
@@ -481,7 +486,7 @@ async def _process_wavey_command(bot,message, args):
         'bot': bot,
         'team_role': team_role,
         'GWP': GWP,
-        'prompt_type': 'command'
+        'prompt_type': prompt_type
     }
     if args[0] in VALID_ARGS_DICT:
         if VALID_ARGS_DICT[args[0]]['async']:
@@ -504,6 +509,6 @@ async def _process_wavey_mention(bot, message, args):
         'bot': bot,
         'team_role': team_role,
         'GWP': GWP,
-        'prompt_type': 'mention'
+        'prompt_type': 'dan'
     }
     return await _get_wavey_reply(wavey_input_data)
