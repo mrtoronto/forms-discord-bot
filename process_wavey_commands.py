@@ -509,6 +509,6 @@ async def _process_wavey_mention(bot, message, args):
         'bot': bot,
         'team_role': team_role,
         'GWP': GWP,
-        'prompt_type': 'dan'
+        'prompt_type': 'mention'
     }
     return await _get_wavey_reply(wavey_input_data)

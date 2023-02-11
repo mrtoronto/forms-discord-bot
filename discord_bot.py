@@ -179,7 +179,7 @@ async def on_message(message):
                             bot=bot, 
                             message=message, 
                             args=args,
-                            prompt_type='dan'
+                            prompt_type='command'
                         ), timeout=60)
                     await _process_wavey_reply(wavey_reply, message, ctx)
 
@@ -197,7 +197,7 @@ async def on_message(message):
                             bot=bot, 
                             message=message, 
                             args=message.clean_content.split(' '),
-                            prompt_type='dan'
+                            prompt_type='mention'
                         ), timeout=60)
                     await _process_wavey_reply(wavey_reply, message, ctx)
 
