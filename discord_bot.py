@@ -241,24 +241,23 @@ async def on_message(message):
 @bot._bot.event
 async def on_member_join(member):
     # Get the moderator role
-    roles = await member.guild.fetch_roles()
     categories = member.guild.categories
-    moderator_role = discord.utils.get(roles, name='Team')
-    wavey_role = discord.utils.get(roles, name='Wavey')
+    team_role = member.guild.get_role(1072543560915746826)
+    wavey_role = member.guild.get_role(1072632909078462597)
     con_category = [c for c in categories if c.id == 1072620867835678850][0]
-    logger.info(f'Running event on_member_join for {member} with {moderator_role} & {wavey_role} in {con_category}')
+    logger.info(f'Running event on_member_join for {member} with {team_role} & {wavey_role} in {con_category}')
 
     user_id = member.id
     bot.forms_points[str(user_id)] = 1000
     
     # Create a new private voice channel for the user
-    new_channel = await member.guild.create_text_channel(
+    await member.guild.create_text_channel(
         name=f"{member.display_name} - From Concierge",
         category=con_category,
         overwrites={
             member.guild.default_role: discord.PermissionOverwrite(read_messages=False),
             member: discord.PermissionOverwrite(read_messages=True),
-            moderator_role: discord.PermissionOverwrite(read_messages=True),
+            team_role: discord.PermissionOverwrite(read_messages=True),
             wavey_role: discord.PermissionOverwrite(read_messages=True, read_message_history=True)
         },
         position=0,

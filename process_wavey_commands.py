@@ -541,7 +541,8 @@ async def _process_wavey_command(bot, message, args, prompt_type):
         'GWP': GWP,
         'prompt_type': prompt_type
     }
-    if args[0] in VALID_ARGS_DICT:
+    
+    if len(args) and args[0] in VALID_ARGS_DICT:
         logger.info(f'Running valid wavey command: {args[0]}')
         f_data = VALID_ARGS_DICT[args[0]]
         if f_data.get('team', False) and not team_role:
@@ -558,7 +559,8 @@ async def _process_wavey_command(bot, message, args, prompt_type):
             return f_data['f'](wavey_input_data)
 
     else:
-        logger.info(f'Invalid wavey command: {args[0]}')
+        if len(args):
+            logger.info(f'Invalid wavey command: {args[0]}')
         return await _get_wavey_reply(wavey_input_data)
 
 async def _process_wavey_mention(bot, message, args):
