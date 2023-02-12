@@ -60,6 +60,15 @@ async def _replace_mentions(body, message, bot):
         for mentioned_channel in mentioned_channels:
             body = body.replace(f'#{mentioned_channel.name}', f'<#{mentioned_channel.id}>')
     body = await _try_converting_mentions(body, message, bot)
+
+    for match in re.finditer('(\s|^)@\d>', body):
+        logger.info(f'Found partial mention in {body}, replacing with <')
+        body = body[:match.span()[0]].strip() + '<' + body[match.span()[1]:].strip()
+
+    for match in re.finditer('<@\d(\s|$)', body):
+        logger.info(f'Found partial mention in {body}, replacing with >')
+        body = body[:match.span()[0]].strip() + '>' + body[match.span()[1]:].strip()
+
     return body
 
 
@@ -386,7 +395,8 @@ async def _get_wavey_reply(data):
     lines = gpt_output['lines']
     return {'reply': {
         'channel': data['message'].channel, 
-        'text_lines': lines}
+        'text_lines': lines
+        }
     }
 
 def _help(data):

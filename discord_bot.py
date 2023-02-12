@@ -104,6 +104,7 @@ async def on_raw_reaction_add(payload):
                 color=0xA429D6,
                 url = message.jump_url
             )
+            embed.set_thumbnail(url=message.author.avatar.url)
             
             await ALPHA_CHANNEL.send(
                 f'{alpha_role.mention} {message.author.mention}', 
@@ -128,11 +129,6 @@ async def on_raw_reaction_add(payload):
                 bot.GWP['max_length']
             )
 
-            # await message.channel.send(
-            #     f'{message.author.mention} Thank you for your contribution to the Alpha!',
-            #     reference=message
-            # )
-
             await _send_lines(gpt_output['lines'], message)
     return
 
@@ -146,6 +142,7 @@ async def _send_lines(lines, message):
         line = line.replace('Wavey: ', '')
         line = line.strip()
         line = await _replace_mentions(line, message, bot)
+
         if re.match('Wavey: ', line):
             line = re.sub('Wavey: ', '', line, 1)
         if re.match(f'<@{bot._bot.user.id}>:', line):
