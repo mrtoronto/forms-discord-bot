@@ -12,6 +12,7 @@ import logging
 from filelock import FileLock
 import config_parameters as config
 from string import punctuation
+from oa_api import _get_gpt_prompt, _get_gpt_response
 from process_wavey_commands import _process_wavey_command, _process_wavey_mention, _replace_mentions, _try_converting_mentions
 
 lock = FileLock("data/forms_points.json.lock")
@@ -54,7 +55,7 @@ async def on_raw_reaction_remove(payload):
     message = await channel.fetch_message(payload.message_id)
     user = await message.guild.fetch_member(payload.user_id)
     emoji = payload.emoji
-    if payload.message_id == 1073324858575945748:
+    if payload.message_id == 1074408946762268763 :
         reacted_user_ids = set()
         logger.info(f'Reacted')
         for reaction in message.reactions:
@@ -74,7 +75,7 @@ async def on_raw_reaction_add(payload):
     message = await channel.fetch_message(payload.message_id)
     user = await message.guild.fetch_member(payload.user_id)
     emoji = payload.emoji
-    if payload.message_id == 1073324858575945748:
+    if payload.message_id == 1074408946762268763 and emoji.is_custom_emoji() and emoji.name in config.ALPHA_REACT_IDS:
         logger.info(f'Reacted')
         alpha_role = user.get_role(1073331675397898281)
         if alpha_role:
@@ -95,7 +96,7 @@ async def on_raw_reaction_add(payload):
             bot.pending_alpha[message.id] = 1
 
         if bot.pending_alpha[message.id] >= config.ALPHA_REACT_THRESHOLD:
-            alpha_role = discord.utils.get(message.guild.roles, name='Alpha')
+            alpha_role = message.guild.get_role(1073331675397898281)
             ALPHA_CHANNEL = await bot._bot.fetch_channel(config.ALPHA_CHANNEL_ID)
             embed = discord.Embed(
                 title=f'Alpha from @{message.author.name}',
@@ -110,10 +111,29 @@ async def on_raw_reaction_add(payload):
             )
             bot.sent_alpha[message.id] = True
 
-            await message.channel.send(
-                f'{message.author.mention} Thank you for your contribution to the Alpha!',
-                reference=message
+            prompt = _get_gpt_prompt(
+                message.content, 
+                None, 
+                wavey_discord_id=bot._bot.user.id,
+                user_discord_id=message.author.id,
+                prompt_type='alpha'
             )
+
+            loop = asyncio.get_running_loop()
+            gpt_output = await loop.run_in_executor(
+                None, 
+                _get_gpt_response, 
+                prompt, 
+                bot.GWP['temperature'],
+                bot.GWP['max_length']
+            )
+
+            # await message.channel.send(
+            #     f'{message.author.mention} Thank you for your contribution to the Alpha!',
+            #     reference=message
+            # )
+
+            await _send_lines(gpt_output['lines'], message)
     return
 
 @bot._bot.event
@@ -126,6 +146,14 @@ async def _send_lines(lines, message):
         line = line.replace('Wavey: ', '')
         line = line.strip()
         line = await _replace_mentions(line, message, bot)
+        if re.match('Wavey: ', line):
+            line = re.sub('Wavey: ', '', line, 1)
+        if re.match(f'<@{bot._bot.user.id}>:', line):
+            line = re.sub(f'<@{bot._bot.user.id}>:', '', line, 1)
+        if re.match('"', line):
+            line = re.sub('"', '', line, 1)
+            if re.search('"$', line):
+                line = re.sub('"$', '', line, 1)
         if idx == 0:
             last_msg = await message.channel.send(
                 line, reference=message

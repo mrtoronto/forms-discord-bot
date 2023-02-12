@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import functools
+import random
 import re
 
 import discord
@@ -275,7 +276,10 @@ async def _check_leaderboards(data):
 
 async def _cleared_prompt_n_messages(data):
     n_messages = int(data['args'][1])
-    previous_messages_str = await _get_previous_messages(data['message'].channel, data['bot'], n_messages=n_messages)
+    previous_messages_str = await _get_previous_messages(
+        data['message'].channel, 
+        data['bot'], 
+        n_messages=n_messages)
     prompt = _get_gpt_prompt(
         " ".join(data['args'][1:]), 
         previous_messages_str, 
@@ -349,11 +353,19 @@ async def _get_prompt(data):
     }
 
 async def _get_wavey_reply(data):
+    rand = random.random()
+    ### Default history characters
+    n_chars = 500
+    if rand < 0.01:
+        n_chars = n_chars * 5
+    elif rand < 0.1:
+        n_chars = n_chars * 2
+    
     previous_messages_str = await _get_previous_messages(
         data['message'].channel,
         data['bot'],
         n_messages=20,
-        n_characters=500
+        n_characters=n_chars
     )
     prompt = _get_gpt_prompt(
         data['message'].content, 
