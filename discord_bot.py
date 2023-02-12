@@ -1,3 +1,4 @@
+import re
 import openai
 
 # Load your API key from an environment variable or secret management service
@@ -11,7 +12,7 @@ import logging
 from filelock import FileLock
 import config_parameters as config
 from string import punctuation
-from process_wavey_commands import _process_wavey_command, _process_wavey_mention, _try_converting_mentions
+from process_wavey_commands import _process_wavey_command, _process_wavey_mention, _replace_mentions, _try_converting_mentions
 
 lock = FileLock("data/forms_points.json.lock")
 
@@ -124,7 +125,7 @@ async def _send_lines(lines, message):
     for idx, line in enumerate(lines):
         line = line.replace('Wavey: ', '')
         line = line.strip()
-        # line = await _try_converting_mentions(line, message, bot)
+        line = await _replace_mentions(line, message, bot)
         if idx == 0:
             last_msg = await message.channel.send(
                 line, reference=message
@@ -145,7 +146,7 @@ async def _process_wavey_reply(wavey_reply, message, ctx):
             if 'text' in value:
                 channel_to_send = value['channel']
                 reply_text = value['text']
-                # reply_text = await _try_converting_mentions(reply_text, message, bot)
+                reply_text = await _replace_mentions(reply_text, message, bot)
                 await channel_to_send.send(
                     reply_text,
                     file=value.get('file'),
@@ -170,15 +171,19 @@ async def _process_wavey_reply(wavey_reply, message, ctx):
 async def on_message(message):
     if bot._bot.user in message.mentions:
         ctx = await bot._bot.get_context(message)
-        args = message.clean_content.split(' ')[1:]
-        if message.clean_content.split(' ')[0] == f'@{bot._bot.user.name}':
+        
+        
+        args = re.split("( +|\n+)", message.clean_content)
+        args = [arg for arg in args if arg.strip() != '']
+        print(f'args: {args}')
+        if args[0] == f'@{bot._bot.user.name}':
             async with ctx.typing():
                 try:
                     wavey_reply = await asyncio.wait_for(
                         _process_wavey_command(
                             bot=bot, 
                             message=message, 
-                            args=args,
+                            args=args[1:],
                             prompt_type='command'
                         ), timeout=60)
                     await _process_wavey_reply(wavey_reply, message, ctx)
@@ -196,7 +201,7 @@ async def on_message(message):
                         _process_wavey_command(
                             bot=bot, 
                             message=message, 
-                            args=message.clean_content.split(' '),
+                            args=args[1:],
                             prompt_type='mention'
                         ), timeout=60)
                     await _process_wavey_reply(wavey_reply, message, ctx)

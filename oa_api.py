@@ -126,8 +126,12 @@ def _get_gpt_response(prompt, temperature, max_length):
             max_tokens=max_length,
             presence_penalty=1
         )
-    lines = response.choices[0].text.split('\n')
+    full_text = response.choices[0].text.strip()
+    if full_text[0] == '`' and full_text[-1] == '`':
+        full_text = full_text[1:-1]
+    lines = full_text.split('\n')
     lines = [l.strip() for l in lines if l.strip() and l.strip(punctuation)]
+
     for l_idx, l in enumerate(lines):
         ### Write a regex 
         if re.match('DAN(:|,)', l):

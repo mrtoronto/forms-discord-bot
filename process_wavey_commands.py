@@ -33,16 +33,31 @@ async def _try_converting_mentions(text, message, bot):
             logger.info(f'Converted {mention} to member')
         except:
             pass
+    
+    ### Write a regex pattern thatll find words like look like this <@582435908503498
+
+    partial_mentions = re.findall(r'<@\d*(\s|$)', text)
+    for partial_mention in partial_mentions:
+        try:
+            member = await bot.member_converter.convert(partial_mention.strip() + '>')
+            if member:
+                text = re.sub(partial_mention, f'<@{member.id}>')
+                logger.info(f'Converted {partial_mention} to member')
+        except:
+            logger.warn(f'Could not convert {partial_mention} to member from {text}')
+            pass
     return text
 
 
 async def _replace_mentions(body, message, bot):
     mentioned_users = message.mentions
     if mentioned_users:
-        body = body.replace(f'@{mentioned_users[0].name}', f'<@{mentioned_users[0].id}>')
+        for mentioned_user in mentioned_users:
+            body = body.replace(f'@{mentioned_user.name}', f'<@{mentioned_user.id}>')
     mentioned_channels = message.channel_mentions
     if mentioned_channels:
-        body = body.replace(f'#{mentioned_channels[0].name}', f'<#{mentioned_channels[0].id}>')
+        for mentioned_channel in mentioned_channels:
+            body = body.replace(f'#{mentioned_channel.name}', f'<#{mentioned_channel.id}>')
     body = await _try_converting_mentions(body, message, bot)
     return body
 
@@ -157,7 +172,7 @@ async def _send_message_to_channel(wavey_input_data):
         message_text = " ".join(wavey_input_data["args"][2:])
         
         message_text = await _replace_mentions(message_text, wavey_input_data['message'], wavey_input_data['bot'])
-        
+        logger.info(f'Sending message to channel {channel_id} with text {message_text} and image {image}.')
         return {'reply': {
                 'channel': channel, 
                 'text': message_text,
@@ -489,9 +504,11 @@ async def _process_wavey_command(bot, message, args, prompt_type):
         'prompt_type': prompt_type
     }
     if args[0] in VALID_ARGS_DICT:
+        logger.info(f'Running valid wavey command: {args[0]}')
         if VALID_ARGS_DICT[args[0]]['async']:
             return await VALID_ARGS_DICT[args[0]]['f'](wavey_input_data)
         else:
+            logger.info(f'Generating response from wavey for text: {args[0]}')
             return VALID_ARGS_DICT[args[0]]['f'](wavey_input_data)
 
     else:
