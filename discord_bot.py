@@ -175,7 +175,6 @@ async def on_message(message):
         
         args = re.split("( +|\n+)", message.clean_content)
         args = [arg for arg in args if arg.strip() != '']
-        print(f'args: {args}')
         if args[0] == f'@{bot._bot.user.name}':
             async with ctx.typing():
                 try:

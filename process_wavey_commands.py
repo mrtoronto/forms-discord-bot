@@ -75,8 +75,6 @@ async def _get_previous_messages(channel, bot, n_messages=20, n_characters=500):
     return previous_messages_str
 
 async def _give_forms_points(wavey_input_data):
-    if not wavey_input_data['team_role']:
-        return {'reply': {'channel': wavey_input_data['message'].channel, 'text': 'No team role set.'}}
     forms_points_dict = wavey_input_data['bot'].forms_points
     sending_name = wavey_input_data['message'].author.name
     sending_member = await wavey_input_data['bot'].member_converter(sending_name)
@@ -109,10 +107,6 @@ async def _tip_forms_points(wavey_input_data):
     return {'forms_points_dict': forms_points_dict, 'reply': {'channel': wavey_input_data["message"].channel, 'text': f'User {sending_name} sent {amount} to {receiving_member.name}.'}}
 
 def _set_temperature(wavey_input_data):
-    if not wavey_input_data['team_role']:
-        return {
-            'reply': {'channel': wavey_input_data['message'].channel, 'text': 'No team role set.'}
-        }
     wavey_input_data['GWP']['temperature'] = float(wavey_input_data['args'][1])
     return {
         'GWP': wavey_input_data['GWP'], 
@@ -122,37 +116,22 @@ def _set_temperature(wavey_input_data):
     }
 
 def _get_temperature(wavey_input_data):
-    if not wavey_input_data['team_role']:
-        return {
-            'reply': {'channel': wavey_input_data['message'].channel, 'text': 'No team role set.'}
-        }
     return {
         'reply': {'channel': wavey_input_data['message'].channel, 'text': f'Temperature currently set to {wavey_input_data["GWP"]["temperature"]}'}
     }
 def _get_max_length(wavey_input_data):
-    if not wavey_input_data['team_role']:
-        return {
-            'reply': {'channel': wavey_input_data['message'].channel, 'text': 'No team role set.'}
-        }
     return {
         'reply': {'channel': wavey_input_data['message'].channel, 'text': f'max_length currently set to {wavey_input_data["GWP"]["max_length"]}'}
     }
 
 def _set_max_length(wavey_input_data):
-    if not wavey_input_data['team_role']:
-        return {
-            'reply': {'channel': wavey_input_data['message'].channel, 'text': 'No team role set.'}
-        }
     wavey_input_data["GWP"]['max_length'] = int(wavey_input_data["args"][1])
     return {
         'GWP': wavey_input_data["GWP"], 
         'reply': {'channel': wavey_input_data['message'].channel, 'text': f'Set max_length to {wavey_input_data["GWP"]["max_length"]}.'}
     }
 
-async def _send_message_to_channel(wavey_input_data):
-    if not wavey_input_data['team_role']:
-        return {'reply': {'channel': wavey_input_data['message'].channel, 'text': 'No team role set.'}}
-    
+async def _send_message_to_channel(wavey_input_data):    
 
     try:
         channel_id = int(wavey_input_data["args"][1])
@@ -186,15 +165,7 @@ async def _send_message_to_channel(wavey_input_data):
             }
         }
 
-async def _send_embed_to_channel(wavey_input_data):
-    if not wavey_input_data['team_role']:
-        return {
-            'reply': {
-                'channel': wavey_input_data['message'].channel, 
-                'text': 'No team role set.'
-            }
-        }
-    
+async def _send_embed_to_channel(wavey_input_data):    
     try:
         channel_id = int(wavey_input_data["args"][1])
         channel = await wavey_input_data["bot"]._bot.fetch_channel(channel_id)
@@ -286,13 +257,6 @@ async def _send_message_as_quote(wavey_input_data):
             return {'reply': {'channel': wavey_input_data["message"].channel, 'text': f'Could not send message to channel {channel.name} for other reasons.'}}
 
 async def _check_leaderboards(data):
-    if not data['team_role']:
-        return {
-            'reply': {
-                'channel': data['message'].channel, 
-                'text': 'No team role set.'
-            }
-        }
     leader_board = sorted(data['bot'].forms_points.items(), key=lambda x: x[1])
     leader_board_str = ''
     for user_id, score in leader_board:
@@ -310,13 +274,6 @@ async def _check_leaderboards(data):
     }
 
 async def _cleared_prompt_n_messages(data):
-    if not data['team_role']:
-        return {
-            'reply': {
-                'channel': data['message'].channel, 
-                'text': 'No team role set.'
-            }
-        }
     n_messages = int(data['args'][1])
     previous_messages_str = await _get_previous_messages(data['message'].channel, data['bot'], n_messages=n_messages)
     prompt = _get_gpt_prompt(
@@ -346,14 +303,6 @@ async def _cleared_prompt_n_messages(data):
 
 
 async def _cleared_prompt(data):
-    if not data['team_role']:
-        # ctx.send('No team role set.')
-        return {
-            'reply': {
-                'channel': data['message'].channel, 
-                'text': 'No team role set.'
-            }
-        }
     prompt = _get_gpt_prompt(
         " ".join(data['args'][1:]), '', 
         wavey_discord_id=data['bot']._bot.user.id, prompt_type='cleared')
@@ -375,8 +324,6 @@ async def _cleared_prompt(data):
     }
 
 async def _get_prompt(data):
-    if not data['team_role']:
-        return {'reply': {'channel': data['message'].channel, 'text': 'No team role set.'}}
     prompt_type = data['args'][1]
     previous_messages_str = await _get_previous_messages(
         data['message'].channel,
@@ -406,7 +353,7 @@ async def _get_wavey_reply(data):
         data['message'].channel,
         data['bot'],
         n_messages=20,
-        n_characters=2000
+        n_characters=500
     )
     prompt = _get_gpt_prompt(
         data['message'].content, 
@@ -431,10 +378,20 @@ async def _get_wavey_reply(data):
     }
 
 def _help(data):
+    user_commands = {f: v for (f, v) in VALID_ARGS_DICT.items() if not v.get('team')}
+    user_commands = f'Commands: {", ".join(user_commands.keys())}'
+    command_out_string = user_commands
+    if data['team_role']:
+        user_commands += '\n\n'
+        team_commands = {f: v for (f, v) in VALID_ARGS_DICT.items() if v.get('team')}
+        team_commands = f'Team commands: {", ".join(team_commands.keys())}'
+        command_out_string += team_commands
+
+    
     return {
         'reply': {
             'channel': data['message'].channel, 
-            'text': f'Commands: {", ".join(VALID_ARGS_DICT.keys())}'
+            'text': command_out_string
         }
     }
 
@@ -464,28 +421,87 @@ def _command_help(data):
             }
 
 VALID_ARGS_DICT = {
-    'set_temperature': {'f': _set_temperature, 'async': False},
-    'get_temperature': {'f': _get_temperature, 'async': False},
-    'set_max_length': {'f': _set_max_length, 'async': False},
-    'get_max_length': {'f': _get_max_length, 'async': False},
-    'give': {'f': _give_forms_points, 'async': True},
-    'tip': {'f': _tip_forms_points, 'async': True},
+    'set_temperature': {
+        'f': _set_temperature, 
+        'async': False,
+        'team': True,
+        'help': 'Set the temperature of the GPT-3 response.'
+    },
+    'get_temperature': {
+        'f': _get_temperature, 
+        'async': False,
+        'team': True,
+        'help': 'Get the temperature of the GPT-3 response.'
+    },
+    'set_max_length': {
+        'f': _set_max_length, 
+        'async': False,
+        'team': True,
+        'help': 'Set the max length of the GPT-3 response.'
+    },
+    'get_max_length': {
+        'f': _get_max_length, 
+        'async': False,
+        'team': True,
+        'help': 'Get the max length of the GPT-3 response.'
+    },
+    'give': {
+        'f': _give_forms_points, 
+        'async': True,
+        'help': 'Give a user some forms points. Example: \n`give @USER 100`',
+        'team': True
+    },
+    'tip': {
+        'f': _tip_forms_points, 
+        'async': True, 
+        'help': 'Tip a user some forms points. Example: \n`tip @USER 100`'
+    },
     'send_message_to_channel': {
-        'f': _send_message_to_channel, 'async': True,
-        'help': 'Send a message to a channel. CHANNEL_ID can be substituted for `here` for debugging.Example: \n`send_message_to_channel CHANNEL_ID MESSAGE`'},
+        'f': _send_message_to_channel, 
+        'async': True,
+        'help': 'Send a message to a channel. CHANNEL_ID can be substituted for `here` for debugging.Example: \n`send_message_to_channel CHANNEL_ID MESSAGE`',
+        'team': True
+    },
     'send_embed_to_channel': {
         'f': _send_embed_to_channel, 'async': True,
-        'help': 'Send an embed to a channel. CHANNEL_ID can be substituted for `here` for debugging. Example: \n`send_embed_to_channel CHANNEL_ID title:TITLE<END> body:BODY<END> link:LINK<END>`'},
+        'help': 'Send an embed to a channel. CHANNEL_ID can be substituted for `here` for debugging. Example: \n`send_embed_to_channel CHANNEL_ID title:TITLE<END> body:BODY<END> link:LINK<END>`',
+        'team': True
+    },
     'send_message_as_quote': {
-        'f': _send_message_as_quote, 'async': True,
-        'help': 'Send a reply to a message. Example: \n`send_message_as_quote MESSAGE_ID MESSAGE`'},
-    'check_leaderboards': {'f': _check_leaderboards, 'async': True},
-    'cleared_prompt_n_messages': {'f': _cleared_prompt_n_messages, 'async': True},
-    'cleared_prompt': {'f': _cleared_prompt, 'async': True},
-    'get_prompt': {'f': _get_prompt, 'async': True, 'help': 'Get a prompt for the bot. Specify a prompt type after the command. Options are mention, command and general. Example: \n`get_prompt mention`'},
-    'get_wavey_reply': {'f': _get_wavey_reply, 'async': True},
-    'bot_help': {'f': _help, 'async': False},
-    'command_help': {'f': _command_help, 'async': False},
+        'f': _send_message_as_quote, 
+        'async': True,
+        'help': 'Send a reply to a message. Example: \n`send_message_as_quote MESSAGE_ID MESSAGE`',
+        'team': True
+    },
+    'check_leaderboards': {
+        'f': _check_leaderboards, 
+        'async': True,
+        'team': True
+    },
+    'cleared_prompt_n_messages': {
+        'f': _cleared_prompt_n_messages, 
+        'async': True,
+        'team': True
+    },
+    'cleared_prompt': {
+        'f': _cleared_prompt, 
+        'async': True,
+        'team': True
+    },
+    'get_prompt': {
+        'f': _get_prompt, 
+        'async': True, 
+        'help': 'Get a prompt for the bot. Specify a prompt type after the command. Options are mention, command and general. Example: \n`get_prompt mention`',
+        'team': True
+    },
+    'bot_help': {
+        'f': _help, 
+        'async': False
+    },
+    'command_help': {
+        'f': _command_help, 
+        'async': False
+    },
 }
 
 
@@ -505,11 +521,19 @@ async def _process_wavey_command(bot, message, args, prompt_type):
     }
     if args[0] in VALID_ARGS_DICT:
         logger.info(f'Running valid wavey command: {args[0]}')
-        if VALID_ARGS_DICT[args[0]]['async']:
-            return await VALID_ARGS_DICT[args[0]]['f'](wavey_input_data)
+        f_data = VALID_ARGS_DICT[args[0]]
+        if f_data.get('team', False) and not team_role:
+            return {
+                'reply': {
+                    'channel': message.channel,
+                    'text': 'You are not a team member.'
+                }
+            }
+        if f_data['async']:
+            return await f_data['f'](wavey_input_data)
         else:
             logger.info(f'Generating response from wavey for text: {args[0]}')
-            return VALID_ARGS_DICT[args[0]]['f'](wavey_input_data)
+            return f_data['f'](wavey_input_data)
 
     else:
         logger.info(f'Invalid wavey command: {args[0]}')
