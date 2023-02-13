@@ -177,7 +177,7 @@ def _get_gpt_response(prompt, temperature, max_length, wavey_discord_id):
                 all_true = False
             
             if re.match('Wavey\'s Response: "', l.strip(), re.IGNORECASE):
-                l = re.sub('Wavey\'s reply: "', '', l, re.IGNORECASE)
+                l = re.sub('Wavey\'s Response: "', '', l, re.IGNORECASE)
                 l = re.sub('"$', "", l)
                 all_true = False
 
