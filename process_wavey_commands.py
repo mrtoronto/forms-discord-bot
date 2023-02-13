@@ -37,7 +37,7 @@ async def _try_converting_mentions(text, message, bot):
     
     ### Write a regex pattern thatll find words like look like this <@582435908503498
 
-    partial_mentions = re.findall(r'<@\d*(\s|$)', text)
+    partial_mentions = re.findall(r'(<)?@\d*(\s|$)', text)
     for partial_mention in partial_mentions:
         try:
             member = await bot.member_converter.convert(partial_mention.strip() + '>')
@@ -55,6 +55,7 @@ async def _replace_mentions(body, message, bot):
     if mentioned_users:
         for mentioned_user in mentioned_users:
             body = body.replace(f'@{mentioned_user.name}', f'<@{mentioned_user.id}>')
+            body = body.replace(f'( |^)@{mentioned_user.id}( |$)', f'<@{mentioned_user.id}>')
     mentioned_channels = message.channel_mentions
     if mentioned_channels:
         for mentioned_channel in mentioned_channels:
