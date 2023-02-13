@@ -70,6 +70,8 @@ async def _replace_mentions(body, message, bot):
         logger.info(f'Found partial mention in {body}, replacing with >')
         body = body[:match.span()[0]].strip() + '>' + body[match.span()[1]:].strip()
 
+    body = re.sub(r'(\s|^)@\d*(\.|!|\?|\s|$)', lambda x: f' <{x.group(0).strip()}> ', body)
+
     return body
 
 
@@ -83,6 +85,8 @@ async def _get_previous_messages(channel, bot, n_messages=20, n_characters=500):
     previous_messages_list = previous_messages_list[::-1]
     previous_messages_str = '\n'.join(previous_messages_list)[-n_characters:]
 
+    ### Find any pattern like @\d.*( |$) and replace with <@\d>
+    previous_messages_str = re.sub(r'(\s|^)@\d*(\s|$)', lambda x: f' <{x.group(0).strip()}> ', previous_messages_str)
     return previous_messages_str
 
 async def _give_forms_points(wavey_input_data):
