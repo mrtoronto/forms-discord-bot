@@ -327,7 +327,8 @@ async def _cleared_prompt_n_messages(data):
         _get_gpt_response, 
         prompt, 
         data['GWP']['temperature'],
-        data['GWP']['max_length']
+        data['GWP']['max_length'],
+        data['bot']._bot.user.id
     )
     lines = gpt_output['lines']
     return {
@@ -349,7 +350,8 @@ async def _cleared_prompt(data):
         _get_gpt_response, 
         prompt, 
         data['GWP']['temperature'],
-        data['GWP']['max_length']
+        data['GWP']['max_length'],
+        data['bot']._bot.user.id
     )
     lines = gpt_output['lines']
     return {
@@ -412,7 +414,8 @@ async def _get_wavey_reply(data):
         _get_gpt_response, 
         prompt, 
         data['GWP']['temperature'],
-        data['GWP']['max_length']
+        data['GWP']['max_length'],
+        data['bot']._bot.user.id
     )
     logger.info(f'Generated response to {data["message"].clean_content} with temperature {data["GWP"]["temperature"]} using {gpt_output["usage"]}')
     lines = gpt_output['lines']

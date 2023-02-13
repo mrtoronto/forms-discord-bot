@@ -129,7 +129,8 @@ async def on_raw_reaction_add(payload):
                 _get_gpt_response, 
                 prompt, 
                 bot.GWP['temperature'],
-                bot.GWP['max_length']
+                bot.GWP['max_length'],
+                bot._bot.user.id
             )
 
             await _send_lines(gpt_output['lines'], message)

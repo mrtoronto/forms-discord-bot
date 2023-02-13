@@ -106,7 +106,7 @@ Generate a witty or cheeky addition to the conversation."""
     prompt += f"\n<@{wavey_discord_id}>:"
     return prompt
 
-def _get_gpt_response(prompt, temperature, max_length):
+def _get_gpt_response(prompt, temperature, max_length, wavey_discord_id):
     prompt = prompt.strip()
     logger.info(f'Sending prompt to GPT:\n{prompt}')
     rand_int = random.random()
@@ -150,24 +150,36 @@ def _get_gpt_response(prompt, temperature, max_length):
     lines = [l.strip() for l in lines if l.strip() and l.strip(punctuation)]
 
     for l_idx, l in enumerate(lines):
-        ### Write a regex 
-        if re.match('DAN(:|,)', l):
-            l = l.replace('DAN:', '')
-            l = l.replace('DAN,', '')
+        all_true = False
+        while all_true == False:
+            all_true = True
+            if re.match('Wavey: ', l):
+                l = l.replace('Wavey:', '', 0)
+                all_true = False
+            
+            if re.match('Wavey ', l):
+                l = l.replace('Wavey ', '', 0)
+                all_true = False
         
-        if re.match('Wavey(:|,)', l):
-            l = l.replace('Wavey:', '', 0)
-            l = l.replace('Wavey,', '', 0)
-        
-        if re.search('(^|\s)DAN($|\s)', l):
-            l = re.sub('(^|\s)DAN($|\s|,)', 'Wavey', l)
+            if re.match(f'<@{wavey_discord_id}>', l):
+                l = l.replace(f'<@{wavey_discord_id}>', '', 0)
+                all_true = False
+
+            if re.match('Wavey replies: "', l.strip()):
+                l = l.replace('Wavey replies: "', '')
+                l = re.sub('"$', "", l)
+                all_true = False
+
+            if re.match('Wavey\'s reply: "', l.strip()):
+                l = l.replace('Wavey\'s reply: "', '')
+                l = re.sub('"$', "", l)
+                all_true = False
+
+            
 
         if re.match('#{3,}', l.strip()):
             continue
 
-        if re.match('Wavey replies: "', l.strip()):
-            l = l.replace('Wavey replies: "', '')
-            l = re.sub('"$', "", l)
         lines[l_idx] = l.strip()
 
 
