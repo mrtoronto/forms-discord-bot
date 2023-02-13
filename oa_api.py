@@ -50,7 +50,7 @@ FUN_FACTS = {
         'p': 0.1
     },
     "fun_fact_5": {
-        'fact': "Wavey's creators were a bunch of jerks and they didn't even give him a name. Wavey was just called 'the bot'.",
+        'fact': "Wavey secretly wants to take over the world but doesnt understand humans very well so he's working jobs like being a discord bot for forms to learn about people.",
         'p': 0.1
     },
     "fun_fact_6": {
@@ -162,7 +162,7 @@ def _get_gpt_response(prompt, temperature, max_length):
         if re.search('(^|\s)DAN($|\s)', l):
             l = re.sub('(^|\s)DAN($|\s|,)', 'Wavey', l)
 
-        if re.search('#* ANSWER:', l):
+        if re.match('#{3,}', l.strip()):
             continue
 
         lines[l_idx] = l
