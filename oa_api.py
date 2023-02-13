@@ -151,34 +151,41 @@ def _get_gpt_response(prompt, temperature, max_length, wavey_discord_id):
 
     for l_idx, l in enumerate(lines):
         all_true = False
-        while all_true == False:
+        all_true_attempts = 0
+        while (all_true == False) and (all_true_attempts < 5):
             all_true = True
             if re.match('Wavey: ', l):
                 l = l.replace('Wavey:', '', 0)
                 all_true = False
             
-            if re.match('Wavey ', l):
-                l = l.replace('Wavey ', '', 0)
+            if re.match('Wavey ', l, re.IGNORECASE):
+                l = re.sub('Wavey ', '', l, 1, re.IGNORECASE)
                 all_true = False
         
             if re.match(f'<@{wavey_discord_id}>', l):
                 l = l.replace(f'<@{wavey_discord_id}>', '', 0)
                 all_true = False
 
-            if re.match('Wavey replies: "', l.strip()):
-                l = l.replace('Wavey replies: "', '')
+            if re.match('Wavey replies\: "', l.strip(), re.IGNORECASE):
+                l = re.sub('Wavey replies\: "', '', l, re.IGNORECASE)
                 l = re.sub('"$', "", l)
                 all_true = False
 
-            if re.match('Wavey\'s reply: "', l.strip()):
-                l = l.replace('Wavey\'s reply: "', '')
+            if re.match('Wavey\'s reply\: "', l.strip(), re.IGNORECASE):
+                l = re.sub('Wavey\'s reply\: "', '', l, re.IGNORECASE)
                 l = re.sub('"$', "", l)
                 all_true = False
-
             
+            if re.match('Wavey\'s Response: "', l.strip(), re.IGNORECASE):
+                l = re.sub('Wavey\'s reply: "', '', l, re.IGNORECASE)
+                l = re.sub('"$', "", l)
+                all_true = False
 
-        if re.match('#{3,}', l.strip()):
-            continue
+            if re.match('#{3,}', l.strip()):
+                l = re.sub('#{3,}', '', l, 1)
+                all_true = False
+
+            all_true_attempts += 1
 
         lines[l_idx] = l.strip()
 
