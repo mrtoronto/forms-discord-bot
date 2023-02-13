@@ -33,13 +33,8 @@ TRAILING_ALPHA_PERIOD = 6
 
 ### Message will need this many alpha reacts in the first 
 ### `TRAILING_ALPHA_PERIOD` hours
-LAYER_1_ALPHA_THRESHOLD = 1
 
-### Message will need this many alpha reacts eventually to be
-### Quoted by the bot
-LAYER_2_ALPHA_THRESHOLD = 1
-
-ALPHA_REACT_THRESHOLD = 1
+ALPHA_REACT_THRESHOLD = 10
 
 
 CHECK_TWITTER_INTERVAL = 60

@@ -99,7 +99,7 @@ async def _give_forms_points(wavey_input_data):
 async def _tip_forms_points(wavey_input_data):
     forms_points_dict = wavey_input_data['bot'].forms_points
     sending_name = wavey_input_data['message'].author.name
-    sending_member = await wavey_input_data['bot'].member_converter.convert(sending_name)
+    sending_member = await wavey_input_data['bot'].member_converter.convert(wavey_input_data['ctx'], sending_name)
     sending_member_id_str = str(sending_member.id)
     
     receiving_member_str = wavey_input_data['args'][1]
@@ -139,6 +139,24 @@ def _set_max_length(wavey_input_data):
     return {
         'GWP': wavey_input_data["GWP"], 
         'reply': {'channel': wavey_input_data['message'].channel, 'text': f'Set max_length to {wavey_input_data["GWP"]["max_length"]}.'}
+    }
+
+def _get_alpha_threshold(wavey_input_data):
+    return {
+        'reply': {
+            'channel': wavey_input_data['message'].channel, 
+            'text': f'alpha_threshold is currently set to {wavey_input_data["bot"].GWP["alpha_threshold"]}'}
+    }
+
+def _set_alpha_threshold(wavey_input_data):
+    wavey_input_data["GWP"]['alpha_threshold'] = int(wavey_input_data["args"][1])
+    return {
+        'GWP': wavey_input_data["GWP"], 
+        'reply': {
+            'channel': wavey_input_data['message'].channel, 
+            'text': f'Set alpha_threshold to {wavey_input_data["GWP"]["alpha_threshold"]}.',
+            'GWP': wavey_input_data["GWP"]
+        }
     }
 
 async def _send_message_to_channel(wavey_input_data):    
@@ -404,7 +422,7 @@ def _help(data):
     user_commands = f'Commands: {", ".join(user_commands.keys())}'
     command_out_string = user_commands
     if data['team_role']:
-        user_commands += '\n\n'
+        command_out_string += '\n\n'
         team_commands = {f: v for (f, v) in VALID_ARGS_DICT.items() if v.get('team')}
         team_commands = f'Team commands: {", ".join(team_commands.keys())}'
         command_out_string += team_commands
@@ -428,6 +446,13 @@ def _command_help(data):
     
     else:
         if 'help' in VALID_ARGS_DICT[data['args'][1]]:
+            if not data['team_role'] and VALID_ARGS_DICT[data['args'][1]].get('team'):
+                return {
+                    'reply': {
+                        'channel': data['message'].channel,
+                        'text': f'Command `{data["args"][1]}` is a team command.'
+                    }
+                }
             return {
                 'reply': {
                     'channel': data['message'].channel,
@@ -466,6 +491,18 @@ VALID_ARGS_DICT = {
         'async': False,
         'team': True,
         'help': 'Get the max length of the GPT-3 response.'
+    },
+    'set_alpha_threshold': {
+        'f': _set_alpha_threshold, 
+        'async': False,
+        'team': True,
+        'help': 'Set the alpha threshold for repost to Wavey\'s corner.'
+    },
+    'get_alpha_threshold': {
+        'f': _get_alpha_threshold, 
+        'async': False,
+        'team': True,
+        'help': 'Get the alpha threshold for a repost to Wavey\'s corner.'
     },
     'give': {
         'f': _give_forms_points, 

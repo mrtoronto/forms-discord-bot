@@ -32,12 +32,15 @@ class FormsBot:
             intents=discord.Intents.all()
         )
 
+        # self.alpha_threshold = config.ALPHA_REACT_THRESHOLD
+
         self.pending_alpha = {}
         self.sent_alpha = {1073324858575945748: True}
 
         self.GWP = {
             'temperature': 0.7,
-            'max_length': 300
+            'max_length': 300,
+            'alpha_threshold': config.ALPHA_REACT_THRESHOLD,
         }
 
         self.member_converter = commands.MemberConverter()
@@ -95,7 +98,7 @@ async def on_raw_reaction_add(payload):
         else:
             bot.pending_alpha[message.id] = 1
 
-        if bot.pending_alpha[message.id] >= config.ALPHA_REACT_THRESHOLD:
+        if bot.pending_alpha[message.id] >= bot.GWP['alpha_threshold']:
             alpha_role = message.guild.get_role(1073331675397898281)
             ALPHA_CHANNEL = await bot._bot.fetch_channel(config.ALPHA_CHANNEL_ID)
             embed = discord.Embed(
@@ -148,8 +151,8 @@ async def _send_lines(lines, message):
         if re.match(f'<@{bot._bot.user.id}>:', line):
             line = re.sub(f'<@{bot._bot.user.id}>:', '', line, 1)
         if re.match('"', line):
-            line = re.sub('"', '', line, 1)
             if re.search('"$', line):
+                line = re.sub('"', '', line, 1)
                 line = re.sub('"$', '', line, 1)
         if idx == 0:
             last_msg = await message.channel.send(
@@ -160,37 +163,8 @@ async def _send_lines(lines, message):
                 line, reference=last_msg
 
             )
-async def _process_wavey_reply(wavey_reply, message, ctx):
-    for key, value in wavey_reply.items():
-        if key == 'GWP':
-            bot.GWP.update(value)
-        elif key == 'forms_points_dict':
-            bot.forms_points = value
-            bot._export_forms_points()
-        elif key == 'reply':
-            if 'text' in value:
-                channel_to_send = value['channel']
-                reply_text = value['text']
-                reply_text = await _replace_mentions(reply_text, message, bot)
-                await channel_to_send.send(
-                    reply_text,
-                    file=value.get('file'),
-                    reference=value.get('reference')
-                )
-            elif 'text_lines' in value:
-                lines = value['text_lines']
-                await _send_lines(lines, message)
-            elif 'embed' in value:
-                channel_to_send = value['channel']
-                embed = value['embed']
-                try:
-                    await channel_to_send.send(
-                        embed=embed
-                    )
-                except Exception as e:
-                    await ctx.send(
-                        f'I tried to send an embed but I can\'t. {e}'
-                    )
+
+    
 
 @bot._bot.event
 async def on_message(message):
@@ -210,7 +184,39 @@ async def on_message(message):
                             args=args[1:],
                             prompt_type='command'
                         ), timeout=60)
-                    await _process_wavey_reply(wavey_reply, message, ctx)
+                    # await _process_wavey_reply(wavey_reply, message, ctx)
+                    for key, value in wavey_reply.items():
+                        if key == 'GWP':
+                            bot.GWP.update(value)
+                        elif key == 'forms_points_dict':
+                            bot.forms_points = value
+                            bot._export_forms_points()
+                        elif key == 'alpha_threshold':
+                            bot.GWP['alpha_threshold'] = value
+                        elif key == 'reply':
+                            if 'text' in value:
+                                channel_to_send = value['channel']
+                                reply_text = value['text']
+                                reply_text = await _replace_mentions(reply_text, message, bot)
+                                await channel_to_send.send(
+                                    reply_text,
+                                    file=value.get('file'),
+                                    reference=value.get('reference')
+                                )
+                            elif 'text_lines' in value:
+                                lines = value['text_lines']
+                                await _send_lines(lines, message)
+                            elif 'embed' in value:
+                                channel_to_send = value['channel']
+                                embed = value['embed']
+                                try:
+                                    await channel_to_send.send(
+                                        embed=embed
+                                    )
+                                except Exception as e:
+                                    await ctx.send(
+                                        f'I tried to send an embed but I can\'t. {e}'
+                                    )
 
                 except asyncio.TimeoutError:
                     await ctx.send("The command timed out.")
@@ -228,7 +234,39 @@ async def on_message(message):
                             args=args[1:],
                             prompt_type='mention'
                         ), timeout=60)
-                    await _process_wavey_reply(wavey_reply, message, ctx)
+                    # await _process_wavey_reply(wavey_reply, message, ctx)
+                    for key, value in wavey_reply.items():
+                        if key == 'GWP':
+                            bot.GWP.update(value)
+                        elif key == 'forms_points_dict':
+                            bot.forms_points = value
+                            bot._export_forms_points()
+                        elif key == 'alpha_threshold':
+                            bot.GWP['alpha_threshold'] = value
+                        elif key == 'reply':
+                            if 'text' in value:
+                                channel_to_send = value['channel']
+                                reply_text = value['text']
+                                reply_text = await _replace_mentions(reply_text, message, bot)
+                                await channel_to_send.send(
+                                    reply_text,
+                                    file=value.get('file'),
+                                    reference=value.get('reference')
+                                )
+                            elif 'text_lines' in value:
+                                lines = value['text_lines']
+                                await _send_lines(lines, message)
+                            elif 'embed' in value:
+                                channel_to_send = value['channel']
+                                embed = value['embed']
+                                try:
+                                    await channel_to_send.send(
+                                        embed=embed
+                                    )
+                                except Exception as e:
+                                    await ctx.send(
+                                        f'I tried to send an embed but I can\'t. {e}'
+                                    )
 
                 except asyncio.TimeoutError:
                     await ctx.send("The command timed out.")
@@ -252,7 +290,7 @@ async def on_member_join(member):
     
     # Create a new private voice channel for the user
     await member.guild.create_text_channel(
-        name=f"{member.display_name} - From Concierge",
+        name=f"☎️┃{member.display_name}-hotline",
         category=con_category,
         overwrites={
             member.guild.default_role: discord.PermissionOverwrite(read_messages=False),
@@ -261,7 +299,7 @@ async def on_member_join(member):
             wavey_role: discord.PermissionOverwrite(read_messages=True, read_message_history=True)
         },
         position=0,
-        reason='Creating a private voice channel for the new user'
+        reason='Creating a private channel for the new user'
     )
 
 
