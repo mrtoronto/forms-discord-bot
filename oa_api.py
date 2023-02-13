@@ -165,7 +165,10 @@ def _get_gpt_response(prompt, temperature, max_length):
         if re.match('#{3,}', l.strip()):
             continue
 
-        lines[l_idx] = l
+        if re.match('Wavey replies: "', l.strip()):
+            l = l.replace('Wavey replies: "', '')
+            l = re.sub('"$', "", l)
+        lines[l_idx] = l.strip()
 
 
     logger.info(f'Response from GPT: {lines}')
