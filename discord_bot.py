@@ -156,10 +156,12 @@ async def _send_lines(lines, message):
                 line = re.sub('"', '', line, 1)
                 line = re.sub('"$', '', line, 1)
         if idx == 0:
+            logger.info(f'Sending line: {line}')
             last_msg = await message.channel.send(
                 line, reference=message
             )
         else:
+            logger.info(f'Sending line: {line}')
             last_msg = await message.channel.send(
                 line, reference=last_msg
 
