@@ -69,7 +69,7 @@ async def on_raw_reaction_remove(payload):
         if user.id not in reacted_user_ids:
         
             alpha_role = message.guild.get_role(1073331675397898281)
-            print(f'Removing alpha role from {user.name}')
+            logger.info(f'Removing alpha role from {user.name}')
             await user.remove_roles(alpha_role)
 
 @bot._bot.event
@@ -283,7 +283,7 @@ async def on_member_join(member):
     categories = member.guild.categories
     team_role = member.guild.get_role(1072543560915746826)
     wavey_role = member.guild.get_role(1072632909078462597)
-    con_category = [c for c in categories if c.id == 1074814667588911124][0]
+    con_category = [c for c in categories if c.id == 1074882736768167976][0]
     logger.info(f'Running event on_member_join for {member} with {team_role} & {wavey_role} in {con_category}')
 
     user_id = member.id

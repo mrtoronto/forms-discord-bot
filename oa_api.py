@@ -133,7 +133,7 @@ def _get_gpt_response(prompt, temperature, max_length, wavey_discord_id):
             presence_penalty=0.3
         )
     except Exception as e:
-        print(f'Error: {e}')
+        logger.warning(f'Error: {e}')
         time.sleep(5)
         response = openai.Completion.create(
             model="text-davinci-003", 
