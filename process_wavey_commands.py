@@ -60,6 +60,10 @@ async def _replace_mentions(body, message, bot):
     if mentioned_channels:
         for mentioned_channel in mentioned_channels:
             body = body.replace(f'#{mentioned_channel.name}', f'<#{mentioned_channel.id}>')
+    mentioned_roles = message.role_mentions
+    if mentioned_roles:
+        for mentioned_role in mentioned_roles:
+            body = body.replace(f'@{mentioned_role.name}', f'<@&{mentioned_role.id}>')
     body = await _try_converting_mentions(body, message, bot)
 
     for match in re.finditer('(\s|^)@\d>', body):

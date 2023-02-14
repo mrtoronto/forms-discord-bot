@@ -160,12 +160,12 @@ async def _send_lines(lines, message):
         if idx == 0:
             logger.info(f'Sending line: {line}')
             last_msg = await message.channel.send(
-                line, reference=message
+                line, reference=message, allowed_mentions=discord.AllowedMentions.all(),
             )
         else:
             logger.info(f'Sending line: {line}')
             last_msg = await message.channel.send(
-                line, reference=last_msg
+                line, reference=last_msg, allowed_mentions=discord.AllowedMentions.all(),
 
             )
 
@@ -217,7 +217,8 @@ async def on_message(message):
                         await channel_to_send.send(
                             reply_text,
                             file=value.get('file'),
-                            reference=value.get('reference')
+                            reference=value.get('reference'),
+                            allowed_mentions=discord.AllowedMentions.all()
                         )
                     elif 'text_lines' in value:
                         lines = value['text_lines']
@@ -227,8 +228,11 @@ async def on_message(message):
                         embed = value['embed']
                         try:
                             await channel_to_send.send(
-                                embed=embed
+                                embed=embed,
+                                allowed_mentions=discord.AllowedMentions.all(),
                             )
+                            genesis_role = message.guild.get_role(1072547064271077436)
+                            logger.info(f'Genesis role: {genesis_role.mention}')
                         except Exception as e:
                             await ctx.send(
                                 f'I tried to send an embed but I can\'t. {e}'
@@ -276,7 +280,8 @@ async def on_message(message):
                         await channel_to_send.send(
                             reply_text,
                             file=value.get('file'),
-                            reference=value.get('reference')
+                            reference=value.get('reference'),
+                            allowed_mentions=discord.AllowedMentions.all()
                         )
                     elif 'text_lines' in value:
                         lines = value['text_lines']
@@ -286,8 +291,10 @@ async def on_message(message):
                         embed = value['embed']
                         try:
                             await channel_to_send.send(
-                                embed=embed
+                                embed=embed,
+                                allowed_mentions=discord.AllowedMentions.all()
                             )
+
                         except Exception as e:
                             await ctx.send(
                                 f'I tried to send an embed but I can\'t. {e}'
