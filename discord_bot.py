@@ -198,7 +198,7 @@ async def on_message(message):
                         retry_count += 1
             if not success:
                 logger.warning(f'Wavey failed to respond to {message.author}\'s mention - {args}')
-                await ctx.send("I got distracted... Please remind me what you wanted...?")
+                await ctx.send("I got distracted... Remind me what you wanted...?")
                 
             # await _process_wavey_reply(wavey_reply, message, ctx)
             for key, value in wavey_reply.items():
@@ -258,7 +258,7 @@ async def on_message(message):
                 
             if not success:
                 logger.warning(f'Wavey failed to respond to {message.author}\'s mention - {args}')
-                await ctx.send("Oops I got distracted... Please remind me what you wanted...?")
+                await ctx.send("Oops I got distracted... Remind me what you wanted...?")
                 
             for key, value in wavey_reply.items():
                 if key == 'GWP':
