@@ -189,7 +189,7 @@ async def on_message(message):
                                 message=message, 
                                 args=args[1:],
                                 prompt_type='command'
-                            ), timeout=5)
+                            ), timeout=20)
 
                         success = True
 
@@ -248,7 +248,7 @@ async def on_message(message):
                                 message=message, 
                                 args=args[1:],
                                 prompt_type='mention'
-                            ), timeout=5)
+                            ), timeout=20)
                         print(wavey_reply)
                         success = True
 
