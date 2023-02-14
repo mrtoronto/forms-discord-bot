@@ -1,4 +1,5 @@
 import re
+import traceback
 import openai
 
 # Load your API key from an environment variable or secret management service
@@ -142,6 +143,7 @@ async def on_ready():
     logger.info('------')
 
 async def _send_lines(lines, message):
+    logger.info(f'Sending lines: {lines}')
     for idx, line in enumerate(lines):
         line = line.replace('Wavey: ', '')
         line = line.strip()
@@ -172,108 +174,124 @@ async def _send_lines(lines, message):
 @bot._bot.event
 async def on_message(message):
     if bot._bot.user in message.mentions:
-        ctx = await bot._bot.get_context(message)
-        
-        
+        ctx = await bot._bot.get_context(message)        
         args = re.split("( +|\n+)", message.clean_content)
         args = [arg for arg in args if arg.strip() != '']
         if args[0] == f'@{bot._bot.user.name}':
-            async with ctx.typing():
-                try:
-                    wavey_reply = await asyncio.wait_for(
-                        _process_wavey_command(
-                            bot=bot, 
-                            message=message, 
-                            args=args[1:],
-                            prompt_type='command'
-                        ), timeout=60)
-                    # await _process_wavey_reply(wavey_reply, message, ctx)
-                    for key, value in wavey_reply.items():
-                        if key == 'GWP':
-                            bot.GWP.update(value)
-                        elif key == 'forms_points_dict':
-                            bot.forms_points = value
-                            bot._export_forms_points()
-                        elif key == 'alpha_threshold':
-                            bot.GWP['alpha_threshold'] = value
-                        elif key == 'reply':
-                            if 'text' in value:
-                                channel_to_send = value['channel']
-                                reply_text = value['text']
-                                reply_text = await _replace_mentions(reply_text, message, bot)
-                                await channel_to_send.send(
-                                    reply_text,
-                                    file=value.get('file'),
-                                    reference=value.get('reference')
-                                )
-                            elif 'text_lines' in value:
-                                lines = value['text_lines']
-                                await _send_lines(lines, message)
-                            elif 'embed' in value:
-                                channel_to_send = value['channel']
-                                embed = value['embed']
-                                try:
-                                    await channel_to_send.send(
-                                        embed=embed
-                                    )
-                                except Exception as e:
-                                    await ctx.send(
-                                        f'I tried to send an embed but I can\'t. {e}'
-                                    )
+            success = False
+            retry_count = 0
+            while (not success) and (retry_count < 5):
+                async with ctx.typing():
+                    try:
+                        wavey_reply = await asyncio.wait_for(
+                            _process_wavey_command(
+                                bot=bot, 
+                                message=message, 
+                                args=args[1:],
+                                prompt_type='command'
+                            ), timeout=5)
 
-                except asyncio.TimeoutError:
-                    await ctx.send("The command timed out.")
+                        success = True
+
+                    except asyncio.TimeoutError as e:
+                        logger.warning(f'Wavey timed out {retry_count} times for {message.author}\'s mention {e}- {args}')
+                        retry_count += 1
+            if not success:
+                logger.warning(f'Wavey failed to respond to {message.author}\'s mention - {args}')
+                await ctx.send("I got distracted... Please remind me what you wanted...?")
                 
+            # await _process_wavey_reply(wavey_reply, message, ctx)
+            for key, value in wavey_reply.items():
+                if key == 'GWP':
+                    bot.GWP.update(value)
+                elif key == 'forms_points_dict':
+                    bot.forms_points = value
+                    bot._export_forms_points()
+                elif key == 'alpha_threshold':
+                    bot.GWP['alpha_threshold'] = value
+                elif key == 'reply':
+                    if 'text' in value:
+                        channel_to_send = value['channel']
+                        reply_text = value['text']
+                        reply_text = await _replace_mentions(reply_text, message, bot)
+                        await channel_to_send.send(
+                            reply_text,
+                            file=value.get('file'),
+                            reference=value.get('reference')
+                        )
+                    elif 'text_lines' in value:
+                        lines = value['text_lines']
+                        await _send_lines(lines, message)
+                    elif 'embed' in value:
+                        channel_to_send = value['channel']
+                        embed = value['embed']
+                        try:
+                            await channel_to_send.send(
+                                embed=embed
+                            )
+                        except Exception as e:
+                            await ctx.send(
+                                f'I tried to send an embed but I can\'t. {e}'
+                            )
 
 
 
         elif message.author != bot._bot.user:
-            async with ctx.typing():
-                try:
-                    wavey_reply = await asyncio.wait_for(
-                        _process_wavey_command(
-                            bot=bot, 
-                            message=message, 
-                            args=args[1:],
-                            prompt_type='mention'
-                        ), timeout=60)
-                    # await _process_wavey_reply(wavey_reply, message, ctx)
-                    for key, value in wavey_reply.items():
-                        if key == 'GWP':
-                            bot.GWP.update(value)
-                        elif key == 'forms_points_dict':
-                            bot.forms_points = value
-                            bot._export_forms_points()
-                        elif key == 'alpha_threshold':
-                            bot.GWP['alpha_threshold'] = value
-                        elif key == 'reply':
-                            if 'text' in value:
-                                channel_to_send = value['channel']
-                                reply_text = value['text']
-                                reply_text = await _replace_mentions(reply_text, message, bot)
-                                await channel_to_send.send(
-                                    reply_text,
-                                    file=value.get('file'),
-                                    reference=value.get('reference')
-                                )
-                            elif 'text_lines' in value:
-                                lines = value['text_lines']
-                                await _send_lines(lines, message)
-                            elif 'embed' in value:
-                                channel_to_send = value['channel']
-                                embed = value['embed']
-                                try:
-                                    await channel_to_send.send(
-                                        embed=embed
-                                    )
-                                except Exception as e:
-                                    await ctx.send(
-                                        f'I tried to send an embed but I can\'t. {e}'
-                                    )
+            success = False
+            retry_count = 0
+            while (not success) and (retry_count < 5):
+                async with ctx.typing():
+                    try:
+                        wavey_reply = await asyncio.wait_for(
+                            _process_wavey_command(
+                                bot=bot, 
+                                message=message, 
+                                args=args[1:],
+                                prompt_type='mention'
+                            ), timeout=5)
+                        print(wavey_reply)
+                        success = True
 
-                except asyncio.TimeoutError:
-                    await ctx.send("The command timed out.")
+                    except asyncio.TimeoutError as e:
+                        logger.warning(f'Wavey timed out {retry_count} times for {message.author}\'s mention {e}- {args}')
+                        retry_count += 1
                 
+            if not success:
+                logger.warning(f'Wavey failed to respond to {message.author}\'s mention - {args}')
+                await ctx.send("Oops I got distracted... Please remind me what you wanted...?")
+                
+            for key, value in wavey_reply.items():
+                if key == 'GWP':
+                    bot.GWP.update(value)
+                elif key == 'forms_points_dict':
+                    bot.forms_points = value
+                    bot._export_forms_points()
+                elif key == 'alpha_threshold':
+                    bot.GWP['alpha_threshold'] = value
+                elif key == 'reply':
+                    if 'text' in value:
+                        channel_to_send = value['channel']
+                        reply_text = value['text']
+                        reply_text = await _replace_mentions(reply_text, message, bot)
+                        await channel_to_send.send(
+                            reply_text,
+                            file=value.get('file'),
+                            reference=value.get('reference')
+                        )
+                    elif 'text_lines' in value:
+                        lines = value['text_lines']
+                        await _send_lines(lines, message)
+                    elif 'embed' in value:
+                        channel_to_send = value['channel']
+                        embed = value['embed']
+                        try:
+                            await channel_to_send.send(
+                                embed=embed
+                            )
+                        except Exception as e:
+                            await ctx.send(
+                                f'I tried to send an embed but I can\'t. {e}'
+                            )
             
 
     ### This is where we'd add a rare chance for the bot to speak up unprompted

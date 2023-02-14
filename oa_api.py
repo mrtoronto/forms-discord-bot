@@ -2,6 +2,7 @@ import random
 import re
 from string import punctuation
 import time
+import traceback
 import openai
 
 import logging
@@ -106,44 +107,7 @@ Generate a witty or cheeky addition to the conversation."""
     prompt += f"\n<@{wavey_discord_id}>:"
     return prompt
 
-def _get_gpt_response(prompt, temperature, max_length, wavey_discord_id):
-    prompt = prompt.strip()
-    logger.info(f'Sending prompt to GPT:\n{prompt}')
-    rand_int = random.random()
-    if rand_int < 0.01:
-        max_length = max_length * 5
-    elif rand_int < 0.1:
-        max_length = max_length * 2
-    
-    rand_int = random.random()
-    if rand_int > 0.99:
-        temperature = temperature * 0.5
-    elif rand_int > 0.9:
-        temperature = temperature * 0.7
-    elif rand_int > 0.8:
-        temperature = temperature * 0.85
-
-    try:
-        response = openai.Completion.create(
-            model="text-davinci-003", 
-            # model="text-chat-davinci-003", 
-            prompt=prompt, 
-            temperature=temperature, 
-            max_tokens=max_length,
-            presence_penalty=0.3
-        )
-    except Exception as e:
-        logger.warning(f'Error: {e}')
-        time.sleep(5)
-        response = openai.Completion.create(
-            model="text-davinci-003", 
-            # model="text-chat-davinci-002-20221122", 
-            prompt=prompt, 
-            temperature=temperature, 
-            max_tokens=max_length,
-            # presence_penalty=0.3÷
-        )
-    full_text = response.choices[0].text.strip()
+def _process_gpt_output(full_text, wavey_discord_id):
     if full_text[0] == '`' and full_text[-1] == '`':
         full_text = full_text[1:-1]
     lines = full_text.split('\n')
@@ -187,10 +151,37 @@ def _get_gpt_response(prompt, temperature, max_length, wavey_discord_id):
 
             all_true_attempts += 1
 
-        lines[l_idx] = l.strip()
+    lines[l_idx] = l.strip()
 
+    return lines
 
-    logger.info(f'Response from GPT: {lines}')
+def _get_gpt_response(prompt, temperature, max_length, wavey_discord_id):
+    prompt = prompt.strip()
+    rand_int = random.random()
+    if rand_int < 0.01:
+        max_length = max_length * 5
+    elif rand_int < 0.1:
+        max_length = max_length * 2
+    
+    rand_int = random.random()
+    if rand_int > 0.99:
+        temperature = temperature * 0.5
+    elif rand_int > 0.9:
+        temperature = temperature * 0.7
+    elif rand_int > 0.8:
+        temperature = temperature * 0.85
+
+    logger.info(f'Sending prompt to GPT w/ temperature == {temperature} || max_length == {max_length}:\n{prompt}')
+    response = openai.Completion.create(
+        model="text-davinci-003", 
+        prompt=prompt, 
+        temperature=temperature, 
+        max_tokens=max_length
+    )
+    full_text = response.choices[0].text.strip()
+    logger.info(f'Raw GPT Output: {full_text}')
+    lines = _process_gpt_output(full_text, wavey_discord_id)
+    logger.info(f'Processed GPT Output: {lines}')
     return {
         'lines': lines,
         'usage': response.usage
