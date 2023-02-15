@@ -91,8 +91,9 @@ class FormsClient(discord.Client):
             sent_at = datetime.strptime(tweet['created_at'], "%Y-%m-%dT%H:%M:%S.%fZ")
             sent_at = sent_at.replace(tzinfo=pytz.UTC)
             if tweet['text'][0:2] == 'RT':
-                original_poster = tweet['text'].split('RT')[1].split(':')[0].strip()
-                title = f"@{user['username']} retweeted {original_poster}"
+                # original_poster = tweet['text'].split('RT')[1].split(':')[0].strip()
+                # title = f"@{user['username']} retweeted {original_poster}"
+                continue
             else:
                 title = f"@{user['username']} tweeted"
             embed = discord.Embed(
