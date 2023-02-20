@@ -154,7 +154,7 @@ def _process_gpt_output(full_text, wavey_discord_id):
 
             all_true_attempts += 1
 
-    lines[l_idx] = l.strip()
+        lines[l_idx] = l.strip()
 
     return lines
 
