@@ -310,7 +310,7 @@ async def on_member_join(member):
     categories = member.guild.categories
     team_role = member.guild.get_role(1072543560915746826)
     wavey_role = member.guild.get_role(1072632909078462597)
-    con_category = [c for c in categories if c.id == 1075522230194294815][0]
+    con_category = [c for c in categories if c.id == 1078710998808141945][0]
     logger.info(f'Running event on_member_join for {member} with {team_role} & {wavey_role} in {con_category}')
 
     user_id = member.id
