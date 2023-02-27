@@ -366,6 +366,7 @@ async def on_member_join(member):
 
     if old_count != new_count:
         logger.info(f'Genesis invite used by {member}')
+        await member.add_roles(member.guild.get_role(1079479548950880378))
         await member.add_roles(member.guild.get_role(1072547064271077436))
 
     bot.genesis_invite_uses = new_count
