@@ -45,6 +45,17 @@ class FormsBot:
         }
 
         self.member_converter = commands.MemberConverter()
+        self.genesis_invite = None
+        self.genesis_invite_uses = 0
+
+    async def update_genesis_invite_use_count(self):
+        genesis_invite_code = "8zepXuy5au"
+        guild = await self._bot.fetch_guild(1072543131607777300)
+        guild_invites = await guild.invites()
+        self.genesis_invite = [i for i in guild_invites if i.code == genesis_invite_code][0]
+        self.genesis_invite_uses = bot.genesis_invite.uses
+        logger.info(f'Genesis invite uses: {self.genesis_invite_uses}')
+        return self.genesis_invite_uses
 
     def _export_forms_points(self):
         with lock:
@@ -139,7 +150,9 @@ async def on_raw_reaction_add(payload):
 
 @bot._bot.event
 async def on_ready():
+    bot.genesis_invite_uses = await bot.update_genesis_invite_use_count()
     logger.info(f'Logged in as {bot._bot.user} (ID: {bot._bot.user.id})')
+    logger.info(f'Genesis invite uses: {bot.genesis_invite_uses}')
     logger.info('------')
 
 async def _send_lines(lines, message):
@@ -305,30 +318,59 @@ async def on_message(message):
 
 #Events
 @bot._bot.event
-async def on_member_join(member):
-    # Get the moderator role
-    categories = member.guild.categories
-    team_role = member.guild.get_role(1072543560915746826)
-    wavey_role = member.guild.get_role(1072632909078462597)
-    con_category = [c for c in categories if c.id == 1078710998808141945][0]
-    logger.info(f'Running event on_member_join for {member} with {team_role} & {wavey_role} in {con_category}')
+async def on_member_update(before, after):
 
-    user_id = member.id
-    bot.forms_points[str(user_id)] = 1000
+    genesis_member_role_id = 1072547064271077436
+    team_role_id = 1072543560915746826
+    wavey_role_id = 1072632909078462597
+    con_category_id = 1078710998808141945
+
+    if after.get_role(genesis_member_role_id) is not None and before.get_role(genesis_member_role_id) is None:
+        categories = after.guild.categories
+        team_role = after.guild.get_role(team_role_id)
+        wavey_role = after.guild.get_role(wavey_role_id)
+        con_category = [c for c in categories if c.id == con_category_id][0]
+        logger.info(f'Running event on_member_update for {after} with {team_role} & {wavey_role} in {con_category}')
+
+        user_id = after.id
+        bot.forms_points[str(user_id)] = 1000
+        
+        # Create a new private voice channel for the user
+        await after.guild.create_text_channel(
+            name=f"☎️┃{after.display_name}-hotline",
+            category=con_category,
+            overwrites={
+                after.guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                after: discord.PermissionOverwrite(read_messages=True),
+                team_role: discord.PermissionOverwrite(read_messages=True),
+                wavey_role: discord.PermissionOverwrite(read_messages=True, read_message_history=True)
+            },
+            position=0,
+            reason='Creating a private channel for the new user'
+        )
+
+
+@bot._bot.event
+async def on_member_join(member):
+    """
+    https://discord.gg/8zepXuy5au
+    """
+    logger.info(f'Running event on_member_join for {member}')
+
+    ### Check whether genesis invite was used
+    old_count = bot.genesis_invite_uses
+
+    new_count = await bot.update_genesis_invite_use_count()
+
+    logger.info(f'Genesis invite use count: {old_count} -> {new_count}')
+
+    if old_count != new_count:
+        logger.info(f'Genesis invite used by {member}')
+        await member.add_roles(member.guild.get_role(1072547064271077436))
+
+    bot.genesis_invite_uses = new_count
+
     
-    # Create a new private voice channel for the user
-    await member.guild.create_text_channel(
-        name=f"☎️┃{member.display_name}-hotline",
-        category=con_category,
-        overwrites={
-            member.guild.default_role: discord.PermissionOverwrite(read_messages=False),
-            member: discord.PermissionOverwrite(read_messages=True),
-            team_role: discord.PermissionOverwrite(read_messages=True),
-            wavey_role: discord.PermissionOverwrite(read_messages=True, read_message_history=True)
-        },
-        position=0,
-        reason='Creating a private channel for the new user'
-    )
 
 
 def _run_discord_bot():

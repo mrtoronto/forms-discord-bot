@@ -34,7 +34,7 @@ TRAILING_ALPHA_PERIOD = 6
 ### Message will need this many alpha reacts in the first 
 ### `TRAILING_ALPHA_PERIOD` hours
 
-ALPHA_REACT_THRESHOLD = 10
+ALPHA_REACT_THRESHOLD = 5
 
 
 CHECK_TWITTER_INTERVAL = 60
