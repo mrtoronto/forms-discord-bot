@@ -8,22 +8,6 @@ import discord
 from oa_api import _get_gpt_prompt, _get_gpt_response
 logger = logging.getLogger('FORMS_BOT')
 
-VALID_ARGS = [
-    'set_temperature',
-    'get_temperature',
-    'set_max_length',
-    'get_max_length',
-    'give',
-    'tip',
-    'check_leaderboards',
-    'cleared_prompt',
-    'cleared_prompt_n_messages',
-    'get_prompt',
-    'send_message_to_channel',
-    'send_message_as_quote',
-    'send_embed_to_channel',
-]
-
 async def _try_converting_mentions(text, message, bot):
     ### Check for regex patterns like @USERNAME
     mentions = re.findall(r'(^|\s)@(\w+)', text)
@@ -51,19 +35,26 @@ async def _try_converting_mentions(text, message, bot):
 
 
 async def _replace_mentions(body, message, bot):
-    mentioned_users = message.mentions
-    if mentioned_users:
-        for mentioned_user in mentioned_users:
-            body = body.replace(f'@{mentioned_user.name}', f'<@{mentioned_user.id}>')
-            body = body.replace(f'( |^)@{mentioned_user.id}( |$)', f'<@{mentioned_user.id}>')
-    mentioned_channels = message.channel_mentions
-    if mentioned_channels:
-        for mentioned_channel in mentioned_channels:
-            body = body.replace(f'#{mentioned_channel.name}', f'<#{mentioned_channel.id}>')
     mentioned_roles = message.role_mentions
     if mentioned_roles:
+        logger.info(f'Found {len(mentioned_roles)} role mentions in {body}')
         for mentioned_role in mentioned_roles:
-            body = body.replace(f'@{mentioned_role.name}', f'<@&{mentioned_role.id}>')
+            logger.info(f'Found mention of {mentioned_role.name} in {body}')
+            body = re.sub(rf'([ ]|^)@{mentioned_role.name}([ ,\.]|$)', rf'\1<@&{mentioned_role.id}>\2', body)
+
+    mentioned_users = message.mentions
+    if mentioned_users:
+        logger.info(f'Found {len(mentioned_users)} mentions in {body}')
+        for mentioned_user in mentioned_users:
+            logger.info(f'Found mention of {mentioned_user.name} in {body}')
+            body = re.sub(rf'(^|[ ])@{mentioned_user.name}([ ,\.]|$)', rf'\1<@{mentioned_user.id}>\2', body)
+    
+    mentioned_channels = message.channel_mentions
+    if mentioned_channels:
+        logger.info(f'Found {len(mentioned_channels)} channel mentions in {body}')
+        for mentioned_channel in mentioned_channels:
+            logger.info(f'Found mention of {mentioned_channel.name} in {body}')
+            body = re.sub(rf'([ ]|^)#{mentioned_channel.name}([ ,\.]|$)', rf'\1<#{mentioned_channel.id}>\2', body)
     body = await _try_converting_mentions(body, message, bot)
 
     for match in re.finditer('(\s|^)@\d>', body):
@@ -82,16 +73,19 @@ async def _replace_mentions(body, message, bot):
 async def _get_previous_messages(channel, bot, n_messages=20, n_characters=500):
     previous_messages = channel.history(limit=n_messages)
     previous_messages_list = []
+    previous_messages_out_list = []
     async for history_message in previous_messages:
         proc_message = history_message.content.strip()
         proc_message = await _replace_mentions(proc_message, history_message, bot)
         previous_messages_list.append(f'<@{history_message.author.id}>: {proc_message}')
+        previous_messages_out_list.append([history_message.author.id, f'<@{history_message.author.id}>: {proc_message}'])
     previous_messages_list = previous_messages_list[::-1]
+    previous_messages_out_list = previous_messages_out_list[::-1]
     previous_messages_str = '\n'.join(previous_messages_list)[-n_characters:]
 
     ### Find any pattern like @\d.*( |$) and replace with <@\d>
     previous_messages_str = re.sub(r'(\s|^)@\d*(\.|!|\?|\s|$)', lambda x: f' <{x.group(0).strip().strip("?!")}> ', previous_messages_str)
-    return previous_messages_str
+    return previous_messages_str, previous_messages_out_list
 
 async def _give_forms_points(wavey_input_data):
     forms_points_dict = wavey_input_data['bot'].forms_points
@@ -310,64 +304,10 @@ async def _check_leaderboards(data):
         }
     }
 
-async def _cleared_prompt_n_messages(data):
-    n_messages = int(data['args'][1])
-    previous_messages_str = await _get_previous_messages(
-        data['message'].channel, 
-        data['bot'], 
-        n_messages=n_messages)
-    prompt = _get_gpt_prompt(
-        " ".join(data['args'][1:]), 
-        previous_messages_str, 
-        wavey_discord_id=data['bot']._bot.user.id,
-        prompt_type='cleared'
-    )
-    await data['message'].channel.send(
-        f'NOT WAVEY: Generating response including last {n_messages} messages and temperature {data["GWP"]["temperature"]}. \n`{prompt}`'
-    )
-    loop = asyncio.get_running_loop()
-    gpt_output = await loop.run_in_executor(
-        None, 
-        _get_gpt_response, 
-        prompt, 
-        data['GWP']['temperature'],
-        data['GWP']['max_length'],
-        data['bot']._bot.user.id
-    )
-    lines = gpt_output['lines']
-    return {
-        'reply': {
-            'channel': data['message'].channel, 'text_lines': lines
-        },
-        'usage': gpt_output['usage']
-    }
-
-
-async def _cleared_prompt(data):
-    prompt = _get_gpt_prompt(
-        " ".join(data['args'][1:]), '', 
-        wavey_discord_id=data['bot']._bot.user.id, prompt_type='cleared')
-    await data['message'].channel.send(f'NOT WAVEY: Generating response with no additional prompting and temperature {data["GWP"]["temperature"]}. \n`{prompt}`')
-    loop = asyncio.get_running_loop()
-    gpt_output = await loop.run_in_executor(
-        None, 
-        _get_gpt_response, 
-        prompt, 
-        data['GWP']['temperature'],
-        data['GWP']['max_length'],
-        data['bot']._bot.user.id
-    )
-    lines = gpt_output['lines']
-    return {
-        'reply': {
-            'channel': data['message'].channel, 'text_lines': lines
-        },
-        'usage': gpt_output['usage']
-    }
 
 async def _get_prompt(data):
     prompt_type = data['args'][1]
-    previous_messages_str = await _get_previous_messages(
+    previous_messages_str, previous_messages_list = await _get_previous_messages(
         data['message'].channel,
         data['bot'],
         n_messages=10,
@@ -380,7 +320,8 @@ async def _get_prompt(data):
         user_submitted_prompt, 
         previous_messages_str, 
         wavey_discord_id=data['bot']._bot.user.id, 
-        prompt_type=prompt_type
+        prompt_type=prompt_type,
+        model='gpt-3.5-turbo'
     )
 
     return {
@@ -399,7 +340,7 @@ async def _get_wavey_reply(data):
     elif rand < 0.1:
         n_chars = n_chars * 2
     
-    previous_messages_str = await _get_previous_messages(
+    previous_messages_str, previous_messages_list = await _get_previous_messages(
         data['message'].channel,
         data['bot'],
         n_messages=20,
@@ -408,8 +349,10 @@ async def _get_wavey_reply(data):
     prompt = _get_gpt_prompt(
         data['message'].content, 
         previous_messages_str, 
+        previous_messages_list=previous_messages_list,
         wavey_discord_id=data['bot']._bot.user.id,
-        prompt_type=data['prompt_type']
+        prompt_type=data['prompt_type'],
+        model='gpt-3.5-turbo'
     )
 
     loop = asyncio.get_running_loop()
@@ -419,7 +362,8 @@ async def _get_wavey_reply(data):
         prompt, 
         data['GWP']['temperature'],
         data['GWP']['max_length'],
-        data['bot']._bot.user.id
+        data['bot']._bot.user.id,
+        'gpt-3.5-turbo'
     )
     logger.info(f'Generated response to {data["message"].clean_content} with temperature {data["GWP"]["temperature"]} using {gpt_output["usage"]}')
     lines = gpt_output['lines']
@@ -546,16 +490,6 @@ VALID_ARGS_DICT = {
     },
     'check_leaderboards': {
         'f': _check_leaderboards, 
-        'async': True,
-        'team': True
-    },
-    'cleared_prompt_n_messages': {
-        'f': _cleared_prompt_n_messages, 
-        'async': True,
-        'team': True
-    },
-    'cleared_prompt': {
-        'f': _cleared_prompt, 
         'async': True,
         'team': True
     },
