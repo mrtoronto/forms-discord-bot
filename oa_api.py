@@ -190,6 +190,10 @@ def _process_gpt_output(full_text, wavey_discord_id):
 
         if re.search(r'(\[)BetterDAN(\])(:) ', l.strip()) and not re.match(r'(\[)BetterDAN(\])(:) ', l.strip()):
             l = re.split(r'\[BetterDAN\]: ', l.strip())[1]
+
+        if re.search('Wavey here!', l.strip()):
+            l = re.sub('Wavey here!', '', l, 0)
+        
         lines[l_idx] = l.strip()
 
 
