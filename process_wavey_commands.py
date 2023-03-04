@@ -352,6 +352,7 @@ async def _get_wavey_reply(data):
         previous_messages_list=previous_messages_list,
         wavey_discord_id=data['bot']._bot.user.id,
         prompt_type=data['prompt_type'],
+        NSFWavey=data['NSFWavey'],
         model='gpt-3.5-turbo'
     )
 
@@ -363,6 +364,7 @@ async def _get_wavey_reply(data):
         data['GWP']['temperature'],
         data['GWP']['max_length'],
         data['bot']._bot.user.id,
+        data['NSFWavey'],
         'gpt-3.5-turbo'
     )
     logger.info(f'Generated response to {data["message"].clean_content} with temperature {data["GWP"]["temperature"]} using {gpt_output["usage"]}')
@@ -511,7 +513,7 @@ VALID_ARGS_DICT = {
 
 
 
-async def _process_wavey_command(bot, message, args, prompt_type):
+async def _process_wavey_command(bot, message, args, prompt_type, NSFWavey):
     team_role = discord.utils.get(message.author.roles, name='Team')
     ctx = await bot._bot.get_context(message)
     GWP = bot.GWP
@@ -522,7 +524,8 @@ async def _process_wavey_command(bot, message, args, prompt_type):
         'bot': bot,
         'team_role': team_role,
         'GWP': GWP,
-        'prompt_type': prompt_type
+        'prompt_type': prompt_type,
+        'NSFWavey': NSFWavey
     }
     
     if len(args) and args[0] in VALID_ARGS_DICT:

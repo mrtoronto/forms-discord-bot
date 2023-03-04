@@ -1,3 +1,4 @@
+from datetime import datetime, time, timezone
 import re
 import traceback
 import openai
@@ -8,6 +9,7 @@ import asyncio
 import json
 import discord
 from discord.ext import commands
+import pytz
 from local_settings import DISCORD_TOKEN, OPENAI_API_KEY
 import logging
 from filelock import FileLock
@@ -186,6 +188,11 @@ async def _send_lines(lines, message):
 
 @bot._bot.event
 async def on_message(message):
+    now = datetime.now(tz=pytz.utc).time()
+    if message.channel.id == config.NSFWAVEY_CHANNEL_ID and now > time(0, 0, 0) and now < time(10, 0, 0):
+        NSFWavey = True
+    else:
+        NSFWavey = False
     if bot._bot.user in message.mentions:
         ctx = await bot._bot.get_context(message)        
         args = re.split("( +|\n+)", message.clean_content)
@@ -201,7 +208,8 @@ async def on_message(message):
                                 bot=bot, 
                                 message=message, 
                                 args=args[1:],
-                                prompt_type='command'
+                                prompt_type='command',
+                                NSFWavey=NSFWavey
                             ), timeout=20)
 
                         success = True
@@ -264,7 +272,8 @@ async def on_message(message):
                                 bot=bot, 
                                 message=message, 
                                 args=args[1:],
-                                prompt_type='mention'
+                                prompt_type='mention',
+                                NSFWavey=NSFWavey
                             ), timeout=20)
                         print(wavey_reply)
                         success = True
