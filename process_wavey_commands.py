@@ -306,21 +306,26 @@ async def _check_leaderboards(data):
 
 
 async def _get_prompt(data):
-    prompt_type = data['args'][1]
     previous_messages_str, previous_messages_list = await _get_previous_messages(
         data['message'].channel,
         data['bot'],
         n_messages=10,
         n_characters=500
     )
-    prompt_type = data['args'][1]
+    if len(data['args']) > 1:
+
+        prompt_type = data['args'][1]
+    else:
+        prompt_type = 'none'
     user_submitted_prompt = data['message'].content
     user_submitted_prompt = await _replace_mentions(user_submitted_prompt, data['message'], data['bot'])
     prompt = _get_gpt_prompt(
         user_submitted_prompt, 
         previous_messages_str, 
+        previous_messages_list=previous_messages_list,
         wavey_discord_id=data['bot']._bot.user.id, 
         prompt_type=prompt_type,
+        NSFWavey=False,
         model='gpt-3.5-turbo'
     )
 

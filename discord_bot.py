@@ -1,4 +1,9 @@
-from datetime import datetime, time, timezone
+from datetime import timezone
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from datetime import datetime, timedelta
+from datetime import time as dt_time
+import random
 import re
 import traceback
 import openai
@@ -8,7 +13,7 @@ import openai
 import asyncio
 import json
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import pytz
 from local_settings import DISCORD_TOKEN, OPENAI_API_KEY
 import logging
@@ -24,6 +29,96 @@ openai.api_key = OPENAI_API_KEY
 
 logger = logging.getLogger('FORMS_BOT')
 
+import sched
+import time
+
+scheduler = sched.scheduler(time.time, time.sleep)
+
+async def wakeup_message(bot):
+    forms_guild_id = 1072543131607777300
+    forms_guild = bot.get_guild(forms_guild_id)
+    bot_commands_channel = forms_guild.get_channel(1072555059637923910)
+    logger.info('Sending wakeup message')
+    await bot_commands_channel.send('Gm ;)')
+
+def schedule_hourly_task(bot):
+    now = datetime.now()
+    next_hour = (now.replace(second=0, microsecond=0, minute=42) + timedelta(hours=0)).timestamp()
+    scheduler.enterabs(next_hour, priority=1, action=asyncio.create_task, kwargs=(wakeup_message(bot),))
+
+class MyCog(commands.Cog):
+    def __init__(self, bot):
+        logger.info('Initializing MyCog')
+        self.bot = bot
+        self.morning_start = 0
+        self.night_start = 0
+
+        self.scheduler = AsyncIOScheduler()
+        ### Save job so its schedule can be edited later
+        self.wake_up_job = self.scheduler.add_job(self.wake_up, CronTrigger(hour='*', minute=52, second=0))
+        self.clear_channel_job = self.scheduler.add_job(self.clear_channel, CronTrigger(hour='*', minute=52, second=0))
+        self.scheduler.add_job(self._update_start_times, CronTrigger(hour=0, minute=0, second=0))
+        self.scheduler.start()
+
+        # asyncio.create_task(self._update_start_times())
+        asyncio.create_task(self.wake_up())
+
+    async def _update_start_times(self):
+        await self.bot.wait_until_ready()  # Wait until the bot is fully connected
+
+        logger.info('Updating start times')
+        self.morning_start = random.randint(0, 10)
+        self.night_start = random.randint(12, 23)
+
+        self.scheduler.reschedule_job(
+            self.wake_up_job.id, 
+            trigger=CronTrigger(hour=f'{self.morning_start},{self.night_start}')
+        )
+        self.scheduler.reschedule_job(
+            self.clear_channel_job.id, 
+            trigger=CronTrigger(hour=f'{self.morning_start + 2},{self.night_start + 2}')
+        )
+
+        await self.new_times_alert()
+
+    async def new_times_alert(self):
+        forms_guild_id = 1072543131607777300
+        forms_guild = self.bot.get_guild(forms_guild_id)
+        bot_commands_channel = forms_guild.get_channel(1072555059637923910)
+        est_tz_out = pytz.timezone("US/Eastern")
+        pst_tz_out = pytz.timezone("US/Pacific")
+        current_date = datetime.utcnow().date()
+        morning_start_est = datetime.combine(current_date, dt_time(self.morning_start, 0, 0, tzinfo=pytz.utc)).astimezone(est_tz_out).time()
+        night_start_est = datetime.combine(current_date, dt_time(self.night_start, 0, 0, tzinfo=pytz.utc)).astimezone(est_tz_out).time()
+        morning_start_pst = datetime.combine(current_date, dt_time(self.morning_start, 0, 0, tzinfo=pytz.utc)).astimezone(pst_tz_out).time()
+        night_start_pst = datetime.combine(current_date, dt_time(self.night_start, 0, 0, tzinfo=pytz.utc)).astimezone(pst_tz_out).time()
+        
+        await bot_commands_channel.send(
+            f'[NSFWavey Wake-up Times]: I\'ll be up for 2 hours at {self.morning_start}:00 and {self.night_start}:00 UTC'
+            f' /// {morning_start_est:%H:%M} and {night_start_est:%H:%M} EST '
+            f' /// {morning_start_pst:%H:%M} and {night_start_pst:%H:%M} PST today.'
+        )
+
+    def cog_unload(self):
+        self.scheduler.shutdown()
+
+    async def wake_up(self):
+        logger.info('Task running')
+        await wakeup_message(self.bot)
+
+    async def clear_channel(self):
+        forms_guild_id = 1072543131607777300
+        forms_guild = self.bot.get_guild(forms_guild_id)
+        nsfwavey_channel = forms_guild.get_channel(1080986943946502235)
+
+        # await nsfwavey_channel.purge()
+        
+
+        
+
+    
+
+
 class FormsBot:
     def __init__(self):
         
@@ -34,8 +129,6 @@ class FormsBot:
             command_prefix=commands.when_mentioned_or('/'), 
             intents=discord.Intents.all()
         )
-
-        # self.alpha_threshold = config.ALPHA_REACT_THRESHOLD
 
         self.pending_alpha = {}
         self.sent_alpha = {1073324858575945748: True}
@@ -72,18 +165,31 @@ async def on_raw_reaction_remove(payload):
     message = await channel.fetch_message(payload.message_id)
     user = await message.guild.fetch_member(payload.user_id)
     emoji = payload.emoji
-    if payload.message_id == 1074408946762268763 :
+    if payload.message_id == config.ALPHA_OPT_IN_MESSAGE_ID:
         reacted_user_ids = set()
         logger.info(f'Reacted')
         for reaction in message.reactions:
-            reacted_users = reaction.users()
-            async for reacting_user in reacted_users:
-                reacted_user_ids.add(reacting_user.id)
+            if reaction.emoji.name and reaction.emoji.name in config.ALPHA_REACT_IDS:
+                reacted_users = reaction.users()
+                async for reacting_user in reacted_users:
+                    reacted_user_ids.add(reacting_user.id)
 
         if user.id not in reacted_user_ids:
-        
-            alpha_role = message.guild.get_role(1073331675397898281)
+            alpha_role = message.guild.get_role(config.ALPHA_ROLE_ID)
             logger.info(f'Removing alpha role from {user.name}')
+            await user.remove_roles(alpha_role)
+    elif payload.message_id == config.NSFWAVEY_OPT_IN_MESSAGE_ID:
+        reacted_user_ids = set()
+        logger.info(f'Reacted')
+        for reaction in message.reactions:
+            if reaction.emoji in config.NSFWAVEY_REACT_IDS:
+                reacted_users = reaction.users()
+                async for reacting_user in reacted_users:
+                    reacted_user_ids.add(reacting_user.id)
+
+        if user.id not in reacted_user_ids:
+            alpha_role = message.guild.get_role(config.NSFWAVEY_ROLE_ID)
+            logger.info(f'Removing NSFWavey role from {user.name}')
             await user.remove_roles(alpha_role)
 
 @bot._bot.event
@@ -92,16 +198,26 @@ async def on_raw_reaction_add(payload):
     message = await channel.fetch_message(payload.message_id)
     user = await message.guild.fetch_member(payload.user_id)
     emoji = payload.emoji
-    if payload.message_id == 1074408946762268763 and emoji.is_custom_emoji() and emoji.name in config.ALPHA_REACT_IDS:
+    if payload.message_id == config.ALPHA_OPT_IN_MESSAGE_ID and emoji.is_custom_emoji() and emoji.name in config.ALPHA_REACT_IDS:
         logger.info(f'Reacted')
-        alpha_role = user.get_role(1073331675397898281)
+        alpha_role = user.get_role(config.ALPHA_ROLE_ID)
         if alpha_role:
             logger.info(f'User {user.name} already has alpha role')
             return
         else:
-            alpha_role = message.guild.get_role(1073331675397898281)
+            alpha_role = message.guild.get_role(config.ALPHA_ROLE_ID)
             logger.info(f'Giving alpha role to {user.name}')
             await user.add_roles(alpha_role)
+    elif payload.message_id == config.NSFWAVEY_OPT_IN_MESSAGE_ID and emoji.name in config.NSFWAVEY_REACT_IDS:
+        logger.info(f'Reacted to NSFWavey opt-in')
+        nsfwavey_role = user.get_role(config.NSFWAVEY_ROLE_ID)
+        if nsfwavey_role:
+            logger.info(f'User {user.name} already has NSFWavey role')
+            return
+        else:
+            nsfwavey_role = message.guild.get_role(config.NSFWAVEY_ROLE_ID)
+            logger.info(f'Giving NSFWavey role to {user.name}')
+            await user.add_roles(nsfwavey_role)
     elif emoji.is_custom_emoji() and emoji.name in config.ALPHA_REACT_IDS:
         if message.id in bot.sent_alpha:
             return
@@ -113,7 +229,7 @@ async def on_raw_reaction_add(payload):
             bot.pending_alpha[message.id] = 1
 
         if bot.pending_alpha[message.id] >= bot.GWP['alpha_threshold']:
-            alpha_role = message.guild.get_role(1073331675397898281)
+            alpha_role = message.guild.get_role(config.ALPHA_ROLE_ID)
             ALPHA_CHANNEL = await bot._bot.fetch_channel(config.ALPHA_CHANNEL_ID)
             embed = discord.Embed(
                 title=f'Alpha from @{message.author.name}',
@@ -157,6 +273,12 @@ async def on_ready():
     logger.info(f'Genesis invite uses: {bot.genesis_invite_uses}')
     logger.info('------')
 
+    asyncio.ensure_future(add_cog(bot))
+    
+async def add_cog(bot):
+    await bot._bot.wait_until_ready()
+    await bot._bot.add_cog(MyCog(bot._bot))
+
 async def _send_lines(lines, message):
     logger.info(f'Sending lines: {lines}')
     for idx, line in enumerate(lines):
@@ -190,11 +312,30 @@ async def _send_lines(lines, message):
 
 @bot._bot.event
 async def on_message(message):
-    now = datetime.now(tz=pytz.utc).time()
-    if message.channel.id == config.NSFWAVEY_CHANNEL_ID and now > time(0, 0, 0) and now < time(10, 0, 0):
-        NSFWavey = True
+    cog = bot._bot.get_cog('MyCog')
+    morning_start = cog.morning_start
+    night_start = cog.night_start
+
+    now = datetime.now(tz=pytz.utc).time().replace(tzinfo=pytz.utc)
+    morning_start_dt = dt_time(morning_start, 0, 0, tzinfo=pytz.utc)
+    morning_end_dt = dt_time(morning_start + 2, 0, 0, tzinfo=pytz.utc)
+    night_start_dt = dt_time(night_start, 0, 0, tzinfo=pytz.utc)
+    night_end_dt = dt_time(night_start + 2, 0, 0, tzinfo=pytz.utc)
+
+    tmp_start_dt = dt_time(0, 0, 0, tzinfo=pytz.utc)
+    tmp_end_dt = dt_time(11, 0, 0, tzinfo=pytz.utc)
+
+    if cog and message.channel.id == config.NSFWAVEY_CHANNEL_ID:
+        # if now > morning_start_dt and now < morning_end_dt:
+        #     NSFWavey = True
+        # elif now > night_start_dt and now < night_end_dt:
+        #     NSFWavey = True
+        if now > tmp_start_dt and now < tmp_end_dt:
+            NSFWavey = (True, True)
+        else:
+            NSFWavey = (True, False)
     else:
-        NSFWavey = False
+        NSFWavey = (False, False)
     if bot._bot.user in message.mentions:
         ctx = await bot._bot.get_context(message)        
         args = re.split("( +|\n+)", message.clean_content)
@@ -237,6 +378,11 @@ async def on_message(message):
                         channel_to_send = value['channel']
                         reply_text = value['text']
                         reply_text = await _replace_mentions(reply_text, message, bot)
+
+                        if len(reply_text) > 2000:
+                            reply_text = reply_text[:2000]
+
+
                         await channel_to_send.send(
                             reply_text,
                             file=value.get('file'),
@@ -381,6 +527,8 @@ async def on_member_join(member):
         await member.add_roles(member.guild.get_role(1072547064271077436))
 
     bot.genesis_invite_uses = new_count
+
+
 
     
 
