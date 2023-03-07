@@ -345,10 +345,15 @@ async def _get_wavey_reply(data):
     elif rand < 0.1:
         n_chars = n_chars * 2
     
+    if data['NSFWavey'][0] and data['NSFWavey'][1]:
+        n_messages = 10
+    else:
+        n_messages = 20
+
     previous_messages_str, previous_messages_list = await _get_previous_messages(
         data['message'].channel,
         data['bot'],
-        n_messages=20,
+        n_messages=n_messages,
         n_characters=n_chars
     )
     prompt = _get_gpt_prompt(
