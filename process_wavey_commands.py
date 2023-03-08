@@ -346,7 +346,7 @@ async def _get_wavey_reply(data):
         n_chars = n_chars * 2
     
     if data['NSFWavey'][0] and data['NSFWavey'][1]:
-        n_messages = 10
+        n_messages = 5
     else:
         n_messages = 20
 
