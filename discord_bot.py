@@ -55,28 +55,32 @@ class MyCog(commands.Cog):
 
         self.scheduler = AsyncIOScheduler()
         ### Save job so its schedule can be edited later
-        self.wake_up_job = self.scheduler.add_job(self.wake_up, CronTrigger(hour='*', minute=52, second=0))
+        self.wake_up_job = self.scheduler.add_job(self.wake_up, CronTrigger(hour='9', minute=0, second=0))
         self.clear_channel_job = self.scheduler.add_job(self.clear_channel, CronTrigger(hour='*', minute=52, second=0))
         self.scheduler.add_job(self._update_start_times, CronTrigger(hour=0, minute=0, second=0))
         self.scheduler.start()
 
-        # asyncio.create_task(self._update_start_times())
-        asyncio.create_task(self.wake_up())
+        asyncio.create_task(self._update_start_times())
+        # asyncio.create_task(self.wake_up())
 
     async def _update_start_times(self):
         await self.bot.wait_until_ready()  # Wait until the bot is fully connected
 
         logger.info('Updating start times')
         self.morning_start = random.randint(0, 10)
-        self.night_start = random.randint(12, 23)
+        self.night_start = random.randint(12, 21)
 
         self.scheduler.reschedule_job(
             self.wake_up_job.id, 
             trigger=CronTrigger(hour=f'{self.morning_start},{self.night_start}')
         )
+
+        morning_end = self.morning_start + 2
+        night_end = self.night_start + 2
+
         self.scheduler.reschedule_job(
             self.clear_channel_job.id, 
-            trigger=CronTrigger(hour=f'{self.morning_start + 2},{self.night_start + 2}')
+            trigger=CronTrigger(hour=f'{morning_end},{night_end}')
         )
 
         await self.new_times_alert()
