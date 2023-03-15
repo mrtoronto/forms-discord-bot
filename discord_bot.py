@@ -330,11 +330,9 @@ async def on_message(message):
     tmp_end_dt = dt_time(11, 0, 0, tzinfo=pytz.utc)
 
     if cog and message.channel.id == config.NSFWAVEY_CHANNEL_ID:
-        # if now > morning_start_dt and now < morning_end_dt:
-        #     NSFWavey = True
-        # elif now > night_start_dt and now < night_end_dt:
-        #     NSFWavey = True
-        if now > tmp_start_dt and now < tmp_end_dt:
+        if now > morning_start_dt and now < morning_end_dt:
+            NSFWavey = (True, True)
+        elif now > night_start_dt and now < night_end_dt:
             NSFWavey = (True, True)
         else:
             NSFWavey = (True, False)
