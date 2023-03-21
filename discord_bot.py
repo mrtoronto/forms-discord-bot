@@ -98,7 +98,7 @@ class MyCog(commands.Cog):
         night_start_pst = datetime.combine(current_date, dt_time(self.night_start, 0, 0, tzinfo=pytz.utc)).astimezone(pst_tz_out).time()
         
         await bot_commands_channel.send(
-            f'[NSFWavey Wake-up Times]: I\'ll be up for 2 hours at {self.morning_start}:00 and {self.night_start}:00 UTC'
+            f'[NSFWavey Wake-up Times]: I\'ll be up for 6 hours between {self.morning_start}:00-{self.morning_start + 6}:00 and {self.night_start}:00-{self.night_start + 6}:00 UTC'
             f' /// {morning_start_est:%H:%M} and {night_start_est:%H:%M} EST '
             f' /// {morning_start_pst:%H:%M} and {night_start_pst:%H:%M} PST today.'
         )
