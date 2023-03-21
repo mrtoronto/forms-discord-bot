@@ -114,8 +114,7 @@ class MyCog(commands.Cog):
         forms_guild_id = 1072543131607777300
         forms_guild = self.bot.get_guild(forms_guild_id)
         nsfwavey_channel = forms_guild.get_channel(1080986943946502235)
-
-        # await nsfwavey_channel.purge()
+        await nsfwavey_channel.purge()
         
 
         
