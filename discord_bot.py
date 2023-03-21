@@ -67,8 +67,8 @@ class MyCog(commands.Cog):
         await self.bot.wait_until_ready()  # Wait until the bot is fully connected
 
         logger.info('Updating start times')
-        self.morning_start = random.randint(0, 6)
-        self.night_start = random.randint(12, 18)
+        self.morning_start = random.randint(0, 5)
+        self.night_start = random.randint(12, 17)
 
         self.scheduler.reschedule_job(
             self.wake_up_job.id, 
