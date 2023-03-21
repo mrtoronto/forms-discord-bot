@@ -67,16 +67,16 @@ class MyCog(commands.Cog):
         await self.bot.wait_until_ready()  # Wait until the bot is fully connected
 
         logger.info('Updating start times')
-        self.morning_start = random.randint(0, 10)
-        self.night_start = random.randint(12, 21)
+        self.morning_start = random.randint(0, 6)
+        self.night_start = random.randint(12, 18)
 
         self.scheduler.reschedule_job(
             self.wake_up_job.id, 
             trigger=CronTrigger(hour=f'{self.morning_start},{self.night_start}')
         )
 
-        morning_end = self.morning_start + 2
-        night_end = self.night_start + 2
+        morning_end = self.morning_start + 6
+        night_end = self.night_start + 6
 
         self.scheduler.reschedule_job(
             self.clear_channel_job.id, 

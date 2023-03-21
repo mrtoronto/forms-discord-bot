@@ -196,7 +196,7 @@ async def _send_message_to_channel(wavey_input_data):
             }
         }
 
-async def _send_embed_to_channel(wavey_input_data):    
+async def _send_embed_to_channel(wavey_input_data):
     try:
         channel_id = int(wavey_input_data["args"][1])
         channel = await wavey_input_data["bot"]._bot.fetch_channel(channel_id)
