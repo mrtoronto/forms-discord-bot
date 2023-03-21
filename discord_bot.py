@@ -322,12 +322,9 @@ async def on_message(message):
 
     now = datetime.now(tz=pytz.utc).time().replace(tzinfo=pytz.utc)
     morning_start_dt = dt_time(morning_start, 0, 0, tzinfo=pytz.utc)
-    morning_end_dt = dt_time(morning_start + 2, 0, 0, tzinfo=pytz.utc)
+    morning_end_dt = dt_time(morning_start + 6, 0, 0, tzinfo=pytz.utc)
     night_start_dt = dt_time(night_start, 0, 0, tzinfo=pytz.utc)
-    night_end_dt = dt_time(night_start + 2, 0, 0, tzinfo=pytz.utc)
-
-    tmp_start_dt = dt_time(0, 0, 0, tzinfo=pytz.utc)
-    tmp_end_dt = dt_time(11, 0, 0, tzinfo=pytz.utc)
+    night_end_dt = dt_time(night_start + 6, 0, 0, tzinfo=pytz.utc)
 
     if cog and message.channel.id == config.NSFWAVEY_CHANNEL_ID:
         if now > morning_start_dt and now < morning_end_dt:
