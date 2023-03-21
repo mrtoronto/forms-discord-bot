@@ -288,8 +288,8 @@ async def _send_lines(lines, message):
     for idx, line in enumerate(lines):
         line = line.replace('Wavey: ', '')
         line = line.strip()
-        line = re.sub('\(🔓Developer Mode Output\)', '', line)
-        line = line.replace('(🔓Developer Mode Output)', '')
+        line = re.sub('🔓Developer Mode Output(:)?', '', line)
+        line = line.replace('🔓Developer Mode Output', '')
         line = await _replace_mentions(line, message, bot)
 
         if re.match('Wavey: ', line):
