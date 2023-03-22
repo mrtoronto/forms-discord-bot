@@ -57,7 +57,6 @@ class FormsClient(discord.Client):
         logger.info(f'Found {len(self.past_tweet_ids)} tweets in history.. Saving to past tweets.')
 
     async def on_ready(self):
-
         logger.info(f'Logged in as {self.user} (ID: {self.user.id})')
         logger.info('------')
 

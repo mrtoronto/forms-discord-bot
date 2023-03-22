@@ -90,34 +90,57 @@ async def _get_previous_messages(channel, bot, n_messages=20, n_characters=500):
 async def _give_forms_points(wavey_input_data):
     forms_points_dict = wavey_input_data['bot'].forms_points
     sending_name = wavey_input_data['message'].author.name
-    sending_member = await wavey_input_data['bot'].member_converter(sending_name)
+    sending_member = await wavey_input_data['bot'].member_converter.convert(wavey_input_data['ctx'], sending_name)
     sending_member_id_str = str(sending_member.id)
     amount = float(wavey_input_data['args'][1])
     forms_points_dict[sending_member_id_str] = forms_points_dict.get(sending_member_id_str, 0) + amount
     return {
         'forms_points_dict': forms_points_dict, 
-        'reply': {'channel': wavey_input_data['message'].channel, 'text': f'User {sending_name} sent {amount} to {sending_name}.'
+        'reply': {
+            'channel': wavey_input_data['message'].channel, 
+            'text': f'User {sending_name} sent {amount} to {sending_name}. {sending_name} now has {forms_points_dict[sending_member_id_str]} forms points.'
     }}
 
 async def _tip_forms_points(wavey_input_data):
+    amount = float(wavey_input_data['args'][2])
+    if amount < 0:
+        return {
+            'reply': {
+                'channel': wavey_input_data['message'].channel, 
+                'text': f'Cannot tip negative forms points.'
+        }
+    }
     forms_points_dict = wavey_input_data['bot'].forms_points
     sending_name = wavey_input_data['message'].author.name
     sending_member = await wavey_input_data['bot'].member_converter.convert(wavey_input_data['ctx'], sending_name)
     sending_member_id_str = str(sending_member.id)
     
     receiving_member_str = wavey_input_data['args'][1]
-    amount = float(wavey_input_data['args'][2])
     receiving_member = await wavey_input_data['bot'].member_converter.convert(wavey_input_data['ctx'], receiving_member_str.replace('@', ''))
     receiving_member_id = str(receiving_member.id)
     
     if sending_member_id_str not in forms_points_dict:
-        return {'reply': {'channel': wavey_input_data['message'].channel, 'text': f'User {wavey_input_data["ctx"].message.author} has no points.'}}
+        return {
+            'reply': {
+                'channel': wavey_input_data['message'].channel, 
+                'text': f'User {wavey_input_data["ctx"].message.author} has no points.'}
+            }
     elif forms_points_dict[sending_member_id_str] < amount:
-        return {'reply': {'channel': wavey_input_data['message'].channel, 'text': f'User {wavey_input_data["ctx"].message.author} has insufficient points.'}}
+        return {
+            'reply': {
+            'channel': wavey_input_data['message'].channel, 
+            'text': f'User {wavey_input_data["ctx"].message.author} has insufficient points.'}
+        }
     else:
         forms_points_dict[sending_member_id_str] = forms_points_dict.get(sending_member_id_str, 0) - amount
         forms_points_dict[receiving_member_id] = forms_points_dict.get(receiving_member_id, 0) + amount
-    return {'forms_points_dict': forms_points_dict, 'reply': {'channel': wavey_input_data["message"].channel, 'text': f'User {sending_name} sent {amount} to {receiving_member.name}.'}}
+    return {
+        'forms_points_dict': forms_points_dict, 
+        'reply': {
+            'channel': wavey_input_data["message"].channel, 
+            'text': f'User {sending_name} sent {amount} to {receiving_member.name}. {sending_name} now has {forms_points_dict[sending_member_id_str]} forms points. {receiving_member.name} now has {forms_points_dict[receiving_member_id]} forms points.' 
+            }
+        }
 
 def _set_temperature(wavey_input_data):
     wavey_input_data['GWP']['temperature'] = float(wavey_input_data['args'][1])

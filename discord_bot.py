@@ -15,6 +15,7 @@ import json
 import discord
 from discord.ext import commands, tasks
 import pytz
+from gcs import upload_blob
 from local_settings import DISCORD_TOKEN, OPENAI_API_KEY
 import logging
 from filelock import FileLock
@@ -40,6 +41,7 @@ async def wakeup_message(bot):
     bot_commands_channel = forms_guild.get_channel(1072555059637923910)
     logger.info('Sending wakeup message')
     await bot_commands_channel.send('Gm ;)')
+    await bot_commands_channel.send('Gm <a:wink~1:1087840766392541235>')
 
 def schedule_hourly_task(bot):
     now = datetime.now()
@@ -56,12 +58,30 @@ class MyCog(commands.Cog):
         self.scheduler = AsyncIOScheduler()
         ### Save job so its schedule can be edited later
         self.wake_up_job = self.scheduler.add_job(self.wake_up, CronTrigger(hour='9', minute=0, second=0))
-        self.clear_channel_job = self.scheduler.add_job(self.clear_channel, CronTrigger(hour='*', minute=52, second=0))
-        self.scheduler.add_job(self._update_start_times, CronTrigger(hour=0, minute=0, second=0))
+        self.clear_channel_job = self.scheduler.add_job(
+            self.clear_channel, 
+            CronTrigger(hour='*', minute=52, second=0)
+        )
+        self.scheduler.add_job(
+            self._update_start_times, 
+            CronTrigger(hour=0, minute=0, second=0)
+        )
+        self.scheduler.add_job(
+            self._backup_forms_points, 
+            CronTrigger(hour=0, minute=0, second=0)
+        )
         self.scheduler.start()
 
         asyncio.create_task(self._update_start_times())
-        # asyncio.create_task(self.wake_up())
+
+        self._backup_forms_points()
+
+    def _backup_forms_points(self):
+        logger.info('Backing up forms points')
+        upload_blob(
+            source_filename='data/forms_points.json',
+            remote_filename=f'form_point_backup/forms_points_{datetime.now():%Y%m%d}.json'
+        )
 
     async def _update_start_times(self):
         await self.bot.wait_until_ready()  # Wait until the bot is fully connected
