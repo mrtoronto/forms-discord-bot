@@ -35,8 +35,5 @@ def upload_blob(
 		blob.delete()
 		
 	blob.upload_from_filename(source_filename)
-	blob.make_public()
 	logger.info(f"File {source_filename} uploaded to {remote_filename}.")
-	
-	return blob.public_url
 

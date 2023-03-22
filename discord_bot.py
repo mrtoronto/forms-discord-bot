@@ -40,6 +40,7 @@ async def wakeup_message(bot):
     forms_guild = bot.get_guild(forms_guild_id)
     bot_commands_channel = forms_guild.get_channel(1072555059637923910)
     logger.info('Sending wakeup message')
+    await bot.wait_until_ready()
     await bot_commands_channel.send('Gm ;)')
     await bot_commands_channel.send('Gm <a:wink~1:1087840766392541235>')
 
@@ -54,6 +55,8 @@ class MyCog(commands.Cog):
         self.bot = bot
         self.morning_start = 0
         self.night_start = 0
+
+        asyncio.create_task(self._update_start_times())
 
         self.scheduler = AsyncIOScheduler()
         ### Save job so its schedule can be edited later
@@ -72,8 +75,6 @@ class MyCog(commands.Cog):
         )
         self.scheduler.start()
 
-        asyncio.create_task(self._update_start_times())
-
         self._backup_forms_points()
 
     def _backup_forms_points(self):
@@ -85,7 +86,6 @@ class MyCog(commands.Cog):
 
     async def _update_start_times(self):
         await self.bot.wait_until_ready()  # Wait until the bot is fully connected
-
         logger.info('Updating start times')
         self.morning_start = random.randint(0, 5)
         self.night_start = random.randint(12, 17)
@@ -117,6 +117,8 @@ class MyCog(commands.Cog):
         morning_start_pst = datetime.combine(current_date, dt_time(self.morning_start, 0, 0, tzinfo=pytz.utc)).astimezone(pst_tz_out).time()
         night_start_pst = datetime.combine(current_date, dt_time(self.night_start, 0, 0, tzinfo=pytz.utc)).astimezone(pst_tz_out).time()
         
+        await self.bot.wait_until_ready()
+
         await bot_commands_channel.send(
             f'[NSFWavey Wake-up Times]: I\'ll be up for 6 hours between {self.morning_start}:00-{self.morning_start + 6}:00 and {self.night_start}:00-{self.night_start + 6}:00 UTC'
             f' /// {morning_start_est:%H:%M} and {night_start_est:%H:%M} EST '
@@ -335,6 +337,7 @@ async def _send_lines(lines, message):
 
 @bot._bot.event
 async def on_message(message):
+    await bot._bot.wait_until_ready()
     cog = bot._bot.get_cog('MyCog')
     morning_start = cog.morning_start
     night_start = cog.night_start
