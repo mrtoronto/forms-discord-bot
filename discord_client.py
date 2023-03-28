@@ -182,7 +182,6 @@ class FormsClient(discord.Client):
 
             # Print out the fetched tweets
             for tweet in tweets['data']:
-                print(tweet)
                 if tweet['id'] not in self.past_influencer_tweet_ids:
                     self.past_influencer_tweet_ids.append(tweet['id'])
                     if send:
@@ -191,7 +190,6 @@ class FormsClient(discord.Client):
                         link_content = ""
                         url = re.search("(?P<url>https?://[^\s]+)", tweet['text'])
                         if url:
-                            print(f'Found URL: {url.group("url")}')
                             url = url.group("url")
 
                             # Get the text from the page and add it to the prompt
