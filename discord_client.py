@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 import json
 import random
 import tweepy
-import time
 import discord
 from discord.ext import tasks
 from local_settings import DISCORD_TOKEN, TWITTER_TOKEN
@@ -12,6 +11,8 @@ import logging
 from config_parameters import *
 
 from filelock import FileLock
+
+from oa_api import _get_gpt_response
 
 lock = FileLock("data/forms_points.json.lock")
 
@@ -29,6 +30,7 @@ class FormsClient(discord.Client):
         self.all_sent_alpha = []
 
         self.past_tweet_ids = []
+        self.past_influencer_tweet_ids = []
 
         self.next_token = None
 
@@ -45,8 +47,10 @@ class FormsClient(discord.Client):
     async def setup_hook(self) -> None:
         ### Checks one channel for alpha now. Could be updated to check a list of channels or all
         self.check_twitter.start()
+        self.check_influencer_twitter.start()
 
         self.TWITTER_CHANNEL = await self.fetch_channel(TWITTER_CHANNEL_ID)
+        self.INFLUENCER_TWITTER_CHANNEL = await self.fetch_channel(INFLUENCER_TWITTER_CHANNEL_ID)
 
         twitter_channel_history = self.TWITTER_CHANNEL.history(limit=50)
         async for message in twitter_channel_history:
@@ -55,6 +59,8 @@ class FormsClient(discord.Client):
             self.past_tweet_ids.append(tweet_id)
 
         logger.info(f'Found {len(self.past_tweet_ids)} tweets in history.. Saving to past tweets.')
+
+        await self.check_recent_infl_tweets(send=True)
 
     async def on_ready(self):
         logger.info(f'Logged in as {self.user} (ID: {self.user.id})')
@@ -124,6 +130,59 @@ class FormsClient(discord.Client):
     @check_twitter.before_loop
     async def before_my_task(self):
         await self.wait_until_ready()  # wait until the bot logs in
+    
+
+
+    def get_user_id(self, username):
+        user = self.client.get_user(username=username)
+        print(user)
+        return user['data']['id']
+
+    def get_recent_tweets(self, user_id, count=10):
+        # Get the user's most recent tweets
+        recent_tweets = self.client.get_users_tweets(id=user_id, max_results=count, exclude="replies")
+
+        return recent_tweets\
+        
+    async def check_recent_infl_tweets(self, send=True):
+        usernames = ["elonmusk", "chriscantino", "punk9059"]  # Replace this with the username of the Twitter account you want to fetch tweets from
+        for username in usernames:
+            user_id = self.get_user_id(username)
+            count = 5  # The number of tweets you want to fetch (max is 100)
+
+            tweets = self.get_recent_tweets(user_id, count)
+
+            # Print out the fetched tweets
+            for tweet in tweets['data']:
+                if tweet['id'] not in self.past_influencer_tweet_ids:
+                    self.past_influencer_tweet_ids.append(tweet['id'])
+                    prompt = [{"role": "system", "content": "You are a sarcastic bot that replies to tweets with sarcastic replies. You are often cheeky and not too mean but always very funny. You're widely knowledgable about cryptocurrency, AI, technology and space. You're also a bit of a meme lord."}]
+                    prompt += [{"role": "user", "content": tweet['text']}]
+                    wavey_reply = _get_gpt_response(
+                        prompt,
+                        0.5, 
+                        50, 
+                        '', 
+                        (False, False), 
+                        model='gpt-3.5-turbo'
+                    )
+                    wavey_reply = " ".join(wavey_reply['lines'])
+
+                    if send:
+                        body = f"https://twitter.com/{username}/status/{tweet['id']}\n```{tweet['text']}```"
+                        msg = await self.INFLUENCER_TWITTER_CHANNEL.send(body)
+                        await msg.edit(suppress=True)
+                        body = f"{wavey_reply}"
+                        await self.INFLUENCER_TWITTER_CHANNEL.send(body)
+    
+    @tasks.loop(minutes=5)
+    async def check_influencer_twitter(self):
+        await self.check_recent_infl_tweets()
+
+    @check_influencer_twitter.before_loop
+    async def before_my_task(self):
+        await self.wait_until_ready()  # wait until the bot logs in
+
 
 def _run_discord_client():
     client = FormsClient(intents=discord.Intents.all())

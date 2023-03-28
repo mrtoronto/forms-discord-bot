@@ -1,0 +1,82 @@
+import asyncio
+import logging
+
+import discord
+import config_parameters as config
+from bot_scripts.send_lines import _send_lines
+from oa_api import _get_gpt_prompt, _get_gpt_response
+
+logger = logging.getLogger('FORMS_BOT')
+
+
+async def _on_raw_reaction_add(payload, bot):
+    channel = await bot._bot.fetch_channel(payload.channel_id)
+    message = await channel.fetch_message(payload.message_id)
+    user = await message.guild.fetch_member(payload.user_id)
+    emoji = payload.emoji
+    if payload.message_id == config.ALPHA_OPT_IN_MESSAGE_ID and emoji.is_custom_emoji() and emoji.name in config.ALPHA_REACT_IDS:
+        logger.info(f'Reacted')
+        alpha_role = user.get_role(config.ALPHA_ROLE_ID)
+        if alpha_role:
+            logger.info(f'User {user.name} already has alpha role')
+            return
+        else:
+            alpha_role = message.guild.get_role(config.ALPHA_ROLE_ID)
+            logger.info(f'Giving alpha role to {user.name}')
+            await user.add_roles(alpha_role)
+    elif payload.message_id == config.NSFWAVEY_OPT_IN_MESSAGE_ID and emoji.name in config.NSFWAVEY_REACT_IDS:
+        logger.info(f'Reacted to NSFWavey opt-in')
+        nsfwavey_role = user.get_role(config.NSFWAVEY_ROLE_ID)
+        if nsfwavey_role:
+            logger.info(f'User {user.name} already has NSFWavey role')
+            return
+        else:
+            nsfwavey_role = message.guild.get_role(config.NSFWAVEY_ROLE_ID)
+            logger.info(f'Giving NSFWavey role to {user.name}')
+            await user.add_roles(nsfwavey_role)
+    elif emoji.is_custom_emoji() and emoji.name in config.ALPHA_REACT_IDS:
+        if message.id in bot.sent_alpha:
+            return
+        
+        if message.id in bot.pending_alpha:
+            bot.pending_alpha[message.id] += 1
+        
+        else:
+            bot.pending_alpha[message.id] = 1
+
+        if bot.pending_alpha[message.id] >= bot.GWP['alpha_threshold']:
+            alpha_role = message.guild.get_role(config.ALPHA_ROLE_ID)
+            ALPHA_CHANNEL = await bot._bot.fetch_channel(config.ALPHA_CHANNEL_ID)
+            embed = discord.Embed(
+                title=f'Alpha from @{message.author.name}',
+                description=f'{message.content}\n\n{message.created_at:%Y / %m / %d %I:%M}',
+                color=0xA429D6,
+                url = message.jump_url
+            )
+            embed.set_thumbnail(url=message.author.avatar.url)
+            
+            await ALPHA_CHANNEL.send(
+                f'{alpha_role.mention} {message.author.mention}', 
+                embed=embed
+            )
+            bot.sent_alpha[message.id] = True
+
+            prompt = _get_gpt_prompt(
+                message.content, 
+                None, 
+                wavey_discord_id=bot._bot.user.id,
+                user_discord_id=message.author.id,
+                prompt_type='alpha'
+            )
+
+            loop = asyncio.get_running_loop()
+            gpt_output = await loop.run_in_executor(
+                None, 
+                _get_gpt_response, 
+                prompt, 
+                bot.GWP['temperature'],
+                bot.GWP['max_length'],
+                bot._bot.user.id
+            )
+
+            await _send_lines(gpt_output['lines'], message, bot._bot)

@@ -1,6 +1,11 @@
 import logging
 import threading
 import os
+import openai
+from local_settings import OPENAI_API_KEY
+
+from discord_client import _run_discord_client
+from discord_bot import _run_discord_bot
 
 if not os.path.exists('data'):
         os.mkdir('data')
@@ -9,8 +14,6 @@ if not os.path.exists('data/forms_points.json'):
     with open('data/forms_points.json', 'w') as f:
         f.write('{}')
 
-from discord_client import _run_discord_client
-from discord_bot import _run_discord_bot
 
 FORMAT = '[%(levelname)s] (%(threadName)s) - %(asctime)s - %(message)s'
 
@@ -20,6 +23,8 @@ file_handler.setFormatter(logging.Formatter(FORMAT))
 logger = logging.getLogger('FORMS_BOT')
 logger.setLevel(logging.DEBUG)
 logger.addHandler(file_handler)
+
+openai.api_key = OPENAI_API_KEY
 
 def main():
     # print ID of current process
