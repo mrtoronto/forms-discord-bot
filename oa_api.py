@@ -272,8 +272,15 @@ def _get_gpt_response(
 
     logger.info(f'Sending prompt to GPT w/ temperature == {temperature} || max_length == {max_length}:\n{prompt}')
     if model == 'text-davinci-003':
-        pass
-    elif model == 'gpt-3.5-turbo':
+        response = openai.ChatCompletion.create(
+            model=model, 
+            messages=prompt, 
+            temperature=temperature, 
+            max_tokens=max_length,
+            frequency_penalty=frequency_penalty,
+            presence_penalty=presence_penalty,
+        )
+    elif model == 'gpt-3.5-turbo' or model == 'gpt-4':
         response = openai.ChatCompletion.create(
             model=model, 
             messages=prompt, 
