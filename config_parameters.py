@@ -48,3 +48,24 @@ ALPHA_REACT_THRESHOLD = 5
 
 
 CHECK_TWITTER_INTERVAL = 60
+
+FOLLOWED_INFLUENCER_ACCOUNTS = [
+    "DegenerateNews", 
+    "itscrypto_news", 
+    "News1Airdrop",
+    "NFT_World_News",
+    "nftnewspro",
+    "NFToNEWS",
+    "LuckyNFTNews",
+    "NftDropsCal",
+    "TodayNft",
+    "NFTInsider_io",
+    "CryptoBoomNews",
+    "NFTPlazas",
+    "LuckyTraderHQ",
+    "blockhead_co",
+    "NFTInsider_io",
+    "esatoshiclub",
+    "AltCoinAll",
+    "nftlately",
+]

@@ -170,10 +170,15 @@ def _get_gpt_prompt(
 
 def _process_gpt_output(full_text, wavey_discord_id, NSFWavey):
     MATCH_PATTERNS = [
-        '(\[)?Wavey(\])?(:)?',
-        '(\[)?BetterDAN(\])?(:)?',
-        '(\[)?GPT(\])?(:)?',
+        '(\[)?Wavey(\'s)?(\])?(:)?',
+        '(\[)?BetterDAN(\'s)?(\])?(:)?',
+        '(\[)?GPT(\'s)?(\])?(:)?',
         f'<@{wavey_discord_id}>(:)?',
+        'responds(:)?',
+        'response(:)?',
+        'Responds(:)?',
+        'Response(:)?',
+        "'s response(:)?",
     ]
     if full_text[0] == '`' and full_text[-1] == '`':
         full_text = full_text[1:-1]
@@ -189,7 +194,7 @@ def _process_gpt_output(full_text, wavey_discord_id, NSFWavey):
             all_true = True
             for pattern in MATCH_PATTERNS:
                 if re.match(pattern, l.strip()):
-                    l = re.sub(pattern, '', l, 0)
+                    l = re.sub(pattern, '', l.strip(), 0)
                     all_true = False
 
             all_true_attempts += 1
