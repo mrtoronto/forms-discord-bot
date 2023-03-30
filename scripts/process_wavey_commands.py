@@ -8,7 +8,7 @@ import discord
 from oa_api import _get_gpt_prompt, _get_gpt_response
 
 from scripts.convert_mentions import _replace_mentions
-from scripts.forms_points_fxns import _give_forms_points, _tip_forms_points, _check_leaderboards
+from scripts.forms_points_fxns import _give_forms_points, _tip_forms_points, _check_leaderboards, _check_balance
 from scripts.get_previous_message import _get_previous_messages
 from scripts.get_set_params import (
     _get_temperature, 
@@ -194,6 +194,10 @@ VALID_ARGS_DICT = {
         'async': True,
         'team': True
     },
+    'check_balance': {
+        'f': _check_balance, 
+        'async': True,
+    },
     'bot_help': {
         'f': _help, 
         'async': False
@@ -220,6 +224,9 @@ async def _process_wavey_command(bot, message, args, prompt_type, NSFWavey):
         'prompt_type': prompt_type,
         'NSFWavey': NSFWavey
     }
+
+    if " ".join(args).lower() in ['check my balance', 'how many pip do I have', 'pip balance', 'give me my pip balance']:
+        return await _check_balance(wavey_input_data)
     
     if len(args) and args[0] in VALID_ARGS_DICT:
         logger.info(f'Running valid wavey command: {args[0]}')

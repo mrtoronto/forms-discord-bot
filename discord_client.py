@@ -1,3 +1,4 @@
+import traceback
 from bs4.element import Comment
 
 import re
@@ -53,6 +54,9 @@ class FormsClient(discord.Client):
         with lock:
             with open('data/forms_points.json', 'r') as f:
                 self.forms_points = json.load(f)
+        with lock:
+            with open('data/forms_points_trxns.json', 'r') as f:
+                self.forms_points_trxns = json.load(f)
 
     async def setup_hook(self) -> None:
         ### Checks one channel for alpha now. Could be updated to check a list of channels or all
@@ -240,7 +244,10 @@ class FormsClient(discord.Client):
     
     @tasks.loop(minutes=5)
     async def check_influencer_twitter(self):
-        await self.check_recent_infl_tweets()
+        try:
+            await self.check_recent_infl_tweets()
+        except:
+            logger.error(traceback.format_exc())
 
     @check_influencer_twitter.before_loop
     async def before_my_task(self):

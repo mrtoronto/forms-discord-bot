@@ -286,14 +286,27 @@ def _get_gpt_response(
             presence_penalty=presence_penalty,
         )
     elif model == 'gpt-3.5-turbo' or model == 'gpt-4':
-        response = openai.ChatCompletion.create(
-            model=model, 
-            messages=prompt, 
-            temperature=temperature, 
-            max_tokens=max_length,
-            frequency_penalty=frequency_penalty,
-            presence_penalty=presence_penalty,
-        )
+        try:
+            response = openai.ChatCompletion.create(
+                model=model, 
+                messages=prompt, 
+                temperature=temperature, 
+                max_tokens=max_length,
+                frequency_penalty=frequency_penalty,
+                presence_penalty=presence_penalty,
+            )
+        except openai.error.APIConnectionError as e:
+            time.sleep(5)
+            logger.warning(f'GPT API Connection Error. Retrying in 5 seconds. {e}')
+            response = openai.ChatCompletion.create(
+                model=model, 
+                messages=prompt, 
+                temperature=temperature, 
+                max_tokens=max_length,
+                frequency_penalty=frequency_penalty,
+                presence_penalty=presence_penalty,
+            )
+
 
         full_text = response.choices[0]['message']['content'].strip()
         logger.info(f'Raw GPT Output: {full_text}')

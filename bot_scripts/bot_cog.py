@@ -69,6 +69,10 @@ class WaveyCog(commands.Cog):
             source_filename='data/forms_points.json',
             remote_filename=f'form_point_backup/forms_points_{datetime.now():%Y%m%d}.json'
         )
+        upload_blob(
+            source_filename='data/forms_points_trxns.json',
+            remote_filename=f'form_point_backup/forms_points_trxns_{datetime.now():%Y%m%d}.json'
+        )
 
     async def _update_start_times(self):
         await self.bot.wait_until_ready()  # Wait until the bot is fully connected

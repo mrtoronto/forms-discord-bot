@@ -14,6 +14,10 @@ if not os.path.exists('data/forms_points.json'):
     with open('data/forms_points.json', 'w') as f:
         f.write('{}')
 
+if not os.path.exists('data/forms_points_trxns.json'):
+    with open('data/forms_points_trxns.json', 'w') as f:
+        f.write('[]')
+
 
 FORMAT = '[%(levelname)s] (%(threadName)s) - %(asctime)s - %(message)s'
 

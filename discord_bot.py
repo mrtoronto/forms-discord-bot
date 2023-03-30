@@ -24,6 +24,8 @@ class FormsBot:
     def __init__(self):
         with open('data/forms_points.json', 'r') as f:
             self.forms_points = json.load(f)
+        with open('data/forms_points_trxns.json', 'r') as f:
+            self.forms_points_trxns = json.load(f)
 
         self._bot = commands.Bot(
             command_prefix=commands.when_mentioned_or('/'), 
@@ -56,6 +58,8 @@ class FormsBot:
         with lock:
             with open('data/forms_points.json', 'w') as f:
                 json.dump(self.forms_points, f)
+            with open('data/forms_points_trxns.json', 'w') as f:
+                json.dump(self.forms_points_trxns, f)
 
 bot = FormsBot()
 

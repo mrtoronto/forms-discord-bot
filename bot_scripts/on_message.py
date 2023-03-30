@@ -68,6 +68,9 @@ async def _on_message(message, bot):
                 elif key == 'forms_points_dict':
                     bot.forms_points = value
                     bot._export_forms_points()
+                elif key == 'forms_points_trxns_dict':
+                    bot.forms_points_trxns = value
+                    bot._export_forms_points()
                 elif key == 'alpha_threshold':
                     bot.GWP['alpha_threshold'] = value
                 elif key == 'reply':
@@ -136,6 +139,9 @@ async def _on_message(message, bot):
                     bot.GWP.update(value)
                 elif key == 'forms_points_dict':
                     bot.forms_points = value
+                    bot._export_forms_points()
+                elif key == 'forms_points_trxns_dict':
+                    bot.forms_points_trxns = value
                     bot._export_forms_points()
                 elif key == 'alpha_threshold':
                     bot.GWP['alpha_threshold'] = value
