@@ -78,12 +78,15 @@ async def _tip_forms_points(wavey_input_data):
     sending_member = await wavey_input_data['bot'].member_converter.convert(wavey_input_data['ctx'], sending_name)
     sending_member_id_str = str(sending_member.id)
     
-    receiving_member_str = wavey_input_data['args'][1]
-    receiving_member = await wavey_input_data['bot'].member_converter.convert(wavey_input_data['ctx'], receiving_member_str.replace('@', ''))
-    receiving_member_id = str(receiving_member.id)
+    guild = wavey_input_data['message'].guild
+    raw_message = wavey_input_data['message'].content
+    args = raw_message.split(' ')
+    receiving_member_str = args[2]
+    receiving_member_id = str(receiving_member_str.replace('@', '').replace('<', '').replace('>', ''))
+    receiving_member = await guild.fetch_member(receiving_member_id)
     
     try:
-        amount = float(wavey_input_data['args'][2])
+        amount = float(args[3])
     except ValueError:
         message_text = get_gpt_reply(
             f"""{sending_member.mention} just tried to tip {receiving_member.mention} but forgot to include an amount!!! Remind them to include an amount after the username or else.. (make a joke)
@@ -111,7 +114,7 @@ async def _tip_forms_points(wavey_input_data):
             }
         }
 
-    user_message = " ".join(wavey_input_data['args'][2:])
+    user_message = " ".join(args[4:])
 
     if amount < 0:
         message_text = get_gpt_reply(
