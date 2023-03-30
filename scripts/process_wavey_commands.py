@@ -225,7 +225,14 @@ async def _process_wavey_command(bot, message, args, prompt_type, NSFWavey):
         'NSFWavey': NSFWavey
     }
 
-    if " ".join(args).lower() in ['check my balance', 'how many pip do I have', 'pip balance', 'give me my pip balance']:
+    if " ".join(args).lower() in [
+        'check my balance', 
+        'how many pip do I have', 
+        'pip balance', 
+        'tip balance', 
+        'balance', 
+        'give me my pip balance'
+    ]:
         return await _check_balance(wavey_input_data)
     
     if len(args) and args[0] in VALID_ARGS_DICT:
