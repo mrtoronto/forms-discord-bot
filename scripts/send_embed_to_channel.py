@@ -1,6 +1,10 @@
 import discord
 from scripts.convert_mentions import _replace_mentions
 
+import logging
+
+logger = logging.getLogger('FORMS_BOT')
+
 async def _send_embed_to_channel(wavey_input_data):
     try:
         channel_id = int(wavey_input_data["args"][1])
