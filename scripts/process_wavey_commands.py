@@ -19,6 +19,14 @@ from scripts.get_set_params import (
     _set_max_length
 )
 
+import tweepy
+from local_settings import (
+    ELEVATED_CONSUMER_KEY, 
+    ELEVATED_CONSUMER_SECRET, 
+    ELEVATED_ACCESS_TOKEN, 
+    ELEVATED_ACCESS_TOKEN_SECRET
+)
+
 from scripts.send_message_to_channel import _send_message_to_channel
 from scripts.send_embed_to_channel import _send_embed_to_channel
 from scripts.send_message_as_quote import _send_message_as_quote
@@ -123,6 +131,37 @@ def _command_help(data):
                     'text': f'Command `{data["args"][1]}` found but does not have help.'
                 }
             }
+        
+
+def _send_tweet(data, channel=None, reply_to_tweet_id=None):
+    # Authenticate to Twitter
+    auth = tweepy.OAuthHandler(ELEVATED_CONSUMER_KEY, ELEVATED_CONSUMER_SECRET)
+    auth.set_access_token(ELEVATED_ACCESS_TOKEN, ELEVATED_ACCESS_TOKEN_SECRET)
+
+    # Create an API object with elevated access
+    api = tweepy.API(auth)
+
+    if isinstance(data, dict):
+        text = " ".join(data['message'].content.split(' ')[2:])
+        channel = data['message'].channel
+    else:
+        text = data
+        channel = channel
+
+    if reply_to_tweet_id:
+        # If it is, send the tweet as a reply to the provided tweet ID
+        api.update_status(text, in_reply_to_status_id=reply_to_tweet_id, auto_populate_reply_metadata=True)
+    else:
+        # If not, send the tweet as usual
+        api.update_status(text)
+
+
+    return {
+        'reply': {
+            'channel': channel,
+            'text': f'Tweeted: {text}'
+        }
+    }
 
 VALID_ARGS_DICT = {
     'set_temperature': {
@@ -205,6 +244,11 @@ VALID_ARGS_DICT = {
     'command_help': {
         'f': _command_help, 
         'async': False
+    },
+    'send_tweet': {
+        'f': _send_tweet, 
+        'async': False,
+        'team': True
     },
 }
 

@@ -5,6 +5,7 @@ import discord
 import config_parameters as config
 from bot_scripts.send_lines import _send_lines
 from oa_api import _get_gpt_prompt, _get_gpt_response
+from scripts.process_wavey_commands import _send_tweet
 
 logger = logging.getLogger('FORMS_BOT')
 
@@ -14,6 +15,16 @@ async def _on_raw_reaction_add(payload, bot):
     message = await channel.fetch_message(payload.message_id)
     user = await message.guild.fetch_member(payload.user_id)
     emoji = payload.emoji
+    if message.channel.id == config.INFLUENCER_TWITTER_CHANNEL_ID:
+        logger.info(f'Reacted to influencer tweet - {emoji.name}')
+        ### if the emoji is the saluting face
+        if emoji.name == '🫡':
+            message_text = message.content
+            tweet_text = message_text.split('```')[-2]
+            reply_to_tweet_id = message_text.split('\n')[1].split('/')[-1]
+            _send_tweet(tweet_text, channel=channel,  reply_to_tweet_id=reply_to_tweet_id)
+            logger.info(f'Replying to tweet {reply_to_tweet_id} with {tweet_text}')
+            
     if payload.message_id == config.ALPHA_OPT_IN_MESSAGE_ID and emoji.is_custom_emoji() and emoji.name in config.ALPHA_REACT_IDS:
         logger.info(f'Reacted')
         alpha_role = user.get_role(config.ALPHA_ROLE_ID)

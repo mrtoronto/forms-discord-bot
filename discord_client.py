@@ -197,7 +197,7 @@ class FormsClient(discord.Client):
 
         return link_content
         
-    async def check_recent_infl_tweets(self, send=False):
+    async def check_recent_infl_tweets(self, send=True):
         
         for username in FOLLOWED_INFLUENCER_ACCOUNTS:
             user_id = self.get_user_id(username)
