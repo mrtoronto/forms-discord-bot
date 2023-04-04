@@ -222,7 +222,7 @@ class FormsClient(discord.Client):
 
                         wavey_reply = _get_gpt_response(
                             prompt,
-                            0.5, 
+                            0.8, 
                             50, 
                             '', 
                             (False, False), 
@@ -235,7 +235,7 @@ class FormsClient(discord.Client):
                         wavey_reply = wavey_reply.replace("🙄", "")
 
                     
-                        body = f"---------------\n"
+                        body = f"--------------- {len(wavey_reply)} \n"
                         body += f"https://twitter.com/{username}/status/{tweet['id']}\n"
                         body += f"> {tweet['text']}\n"
                         body += f"```{wavey_reply}```"

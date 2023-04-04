@@ -7,7 +7,7 @@ async def _on_member_update(before, after, bot):
     genesis_member_role_id = 1072547064271077436
     team_role_id = 1072543560915746826
     wavey_role_id = 1072632909078462597
-    con_category_id = 1078710998808141945
+    con_category_id = 1091562609884545155
 
     if after.get_role(genesis_member_role_id) is not None and before.get_role(genesis_member_role_id) is None:
         categories = after.guild.categories

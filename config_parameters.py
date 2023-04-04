@@ -50,6 +50,11 @@ ALPHA_REACT_THRESHOLD = 5
 CHECK_TWITTER_INTERVAL = 60
 
 FOLLOWED_INFLUENCER_ACCOUNTS = [
+    "elonmusk",
+    "VitalikButerin",
+    "cz_binance",
+    "Jason",
+    "paulg",
     "DegenerateNews", 
     "itscrypto_news", 
     "News1Airdrop",
