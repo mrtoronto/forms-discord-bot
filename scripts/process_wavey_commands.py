@@ -163,6 +163,41 @@ def _send_tweet(data, channel=None, reply_to_tweet_id=None):
         }
     }
 
+def _send_quote_tweet(data, tweet_link, channel=None, reply_to_tweet_id=None):
+    # Authenticate to Twitter
+    auth = tweepy.OAuthHandler(ELEVATED_CONSUMER_KEY, ELEVATED_CONSUMER_SECRET)
+    auth.set_access_token(ELEVATED_ACCESS_TOKEN, ELEVATED_ACCESS_TOKEN_SECRET)
+
+    # Create an API object with elevated access
+    api = tweepy.API(auth)
+
+    if isinstance(data, dict):
+        text = " ".join(data['message'].content.split(' ')[2:])
+        channel = data['message'].channel
+    else:
+        text = data
+        channel = channel
+
+    text += f' {tweet_link}'
+
+    if reply_to_tweet_id:
+        # If it is, send the tweet as a reply to the provided tweet ID
+        api.update_status(
+            text, 
+            auto_populate_reply_metadata=True
+        )
+    else:
+        # If not, send the tweet as usual
+        api.update_status(text)
+
+
+    return {
+        'reply': {
+            'channel': channel,
+            'text': f'Tweeted: {text}'
+        }
+    }
+
 VALID_ARGS_DICT = {
     'set_temperature': {
         'f': _set_temperature, 
