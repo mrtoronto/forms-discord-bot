@@ -55,7 +55,7 @@ def _get_link_content(tweet):
                     pass
                 else:
                     link_content = f"\n\n[Link Content]: {text[:2000]}"
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             print(e)
             # In case of any request errors, continue without page content
             pass
