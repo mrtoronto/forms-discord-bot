@@ -16,6 +16,8 @@ CHECK_PENDING_ALPHA_INTERVAL = 30
 
 ### Channel the bot will ping for messages with enough alpha
 
+FORMS_GUILD_ID = 1072543131607777300
+
 ALPHA_CHANNEL_ID = 1072962447578763332
 ALPHA_ROLE_CHANNEL_ID = 1072963459681103996
 TWITTER_CHANNEL_ID = 1072624102268993576
@@ -48,28 +50,4 @@ ALPHA_REACT_THRESHOLD = 5
 
 CHECK_TWITTER_INTERVAL = 60
 
-FOLLOWED_INFLUENCER_ACCOUNTS = [
-    "elonmusk",
-    "VitalikButerin",
-    "cz_binance",
-    "Jason",
-    "paulg",
-    "DegenerateNews", 
-    "itscrypto_news", 
-    "News1Airdrop",
-    "NFT_World_News",
-    "nftnewspro",
-    "NFToNEWS",
-    "LuckyNFTNews",
-    "NftDropsCal",
-    "TodayNft",
-    "NFTInsider_io",
-    "CryptoBoomNews",
-    "NFTPlazas",
-    "LuckyTraderHQ",
-    "blockhead_co",
-    "NFTInsider_io",
-    "esatoshiclub",
-    "AltCoinAll",
-    "nftlately",
-]
+FOLLOWED_INFLUENCER_ACCOUNTS_JSON = 'data/followed_influencer_accounts.json'

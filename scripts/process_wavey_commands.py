@@ -30,6 +30,7 @@ from local_settings import (
 from scripts.send_message_to_channel import _send_message_to_channel
 from scripts.send_embed_to_channel import _send_embed_to_channel
 from scripts.send_message_as_quote import _send_message_as_quote
+from scripts.twitter_utils import _add_influencer, _check_influencers, _remove_influencer, _send_tweet, _write_tweet
 
 logger = logging.getLogger('FORMS_BOT')
 
@@ -131,72 +132,6 @@ def _command_help(data):
                     'text': f'Command `{data["args"][1]}` found but does not have help.'
                 }
             }
-        
-
-def _send_tweet(data, channel=None, reply_to_tweet_id=None):
-    # Authenticate to Twitter
-    auth = tweepy.OAuthHandler(ELEVATED_CONSUMER_KEY, ELEVATED_CONSUMER_SECRET)
-    auth.set_access_token(ELEVATED_ACCESS_TOKEN, ELEVATED_ACCESS_TOKEN_SECRET)
-
-    # Create an API object with elevated access
-    api = tweepy.API(auth)
-
-    if isinstance(data, dict):
-        text = " ".join(data['message'].content.split(' ')[2:])
-        channel = data['message'].channel
-    else:
-        text = data
-        channel = channel
-
-    if reply_to_tweet_id:
-        # If it is, send the tweet as a reply to the provided tweet ID
-        api.update_status(text, in_reply_to_status_id=reply_to_tweet_id, auto_populate_reply_metadata=True)
-    else:
-        # If not, send the tweet as usual
-        api.update_status(text)
-
-
-    return {
-        'reply': {
-            'channel': channel,
-            'text': f'Tweeted: {text}'
-        }
-    }
-
-def _send_quote_tweet(data, tweet_link, channel=None, reply_to_tweet_id=None):
-    # Authenticate to Twitter
-    auth = tweepy.OAuthHandler(ELEVATED_CONSUMER_KEY, ELEVATED_CONSUMER_SECRET)
-    auth.set_access_token(ELEVATED_ACCESS_TOKEN, ELEVATED_ACCESS_TOKEN_SECRET)
-
-    # Create an API object with elevated access
-    api = tweepy.API(auth)
-
-    if isinstance(data, dict):
-        text = " ".join(data['message'].content.split(' ')[2:])
-        channel = data['message'].channel
-    else:
-        text = data
-        channel = channel
-
-    text += f' {tweet_link}'
-
-    if reply_to_tweet_id:
-        # If it is, send the tweet as a reply to the provided tweet ID
-        api.update_status(
-            text, 
-            auto_populate_reply_metadata=True
-        )
-    else:
-        # If not, send the tweet as usual
-        api.update_status(text)
-
-
-    return {
-        'reply': {
-            'channel': channel,
-            'text': f'Tweeted: {text}'
-        }
-    }
 
 VALID_ARGS_DICT = {
     'set_temperature': {
@@ -282,6 +217,26 @@ VALID_ARGS_DICT = {
     },
     'send_tweet': {
         'f': _send_tweet, 
+        'async': False,
+        'team': True
+    },
+    'write_tweet': {
+        'f': _write_tweet, 
+        'async': True,
+        'team': True
+    },
+    'check_influencers': {
+        'f': _check_influencers, 
+        'async': False,
+        'team': True
+    },
+    'add_influencer': {
+        'f': _add_influencer, 
+        'async': False,
+        'team': True
+    },
+    'remove_influencer': {
+        'f': _remove_influencer, 
         'async': False,
         'team': True
     },

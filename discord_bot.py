@@ -27,6 +27,9 @@ class FormsBot:
         with open('data/forms_points_trxns.json', 'r') as f:
             self.forms_points_trxns = json.load(f)
 
+        with open('data/followed_influencer_accounts.json', 'r') as f:
+            self.followed_influencers = json.load(f)
+
         self._bot = commands.Bot(
             command_prefix=commands.when_mentioned_or('/'), 
             intents=discord.Intents.all()
@@ -60,6 +63,11 @@ class FormsBot:
                 json.dump(self.forms_points, f)
             with open('data/forms_points_trxns.json', 'w') as f:
                 json.dump(self.forms_points_trxns, f)
+    
+    def _export_influencers(self):
+        with lock:
+            with open('data/followed_influencer_accounts.json', 'w') as f:
+                json.dump(self.followed_influencers, f)
 
 bot = FormsBot()
 
@@ -73,6 +81,12 @@ async def on_raw_reaction_add(payload):
 
 @bot._bot.event
 async def on_ready():
+
+    try:
+        guild = await bot._bot.fetch_guild(config.FORMS_GUILD_ID)
+        bot.INFLUENCER_TWITTER_CHANNEL = await guild.fetch_channel(config.INFLUENCER_TWITTER_CHANNEL_ID)
+    except Exception as e:
+        logger.error(f'Could not find influencer twitter channel with id {config.INFLUENCER_TWITTER_CHANNEL_ID} in bot.', exc_info=True)
     bot.genesis_invite_uses = await bot.update_genesis_invite_use_count()
     logger.info(f'Logged in as {bot._bot.user} (ID: {bot._bot.user.id})')
     logger.info(f'Genesis invite uses: {bot.genesis_invite_uses}')

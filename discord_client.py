@@ -21,7 +21,7 @@ from config_parameters import *
 from filelock import FileLock
 
 from oa_api import _get_gpt_response
-from scripts.twitter_utils import _generate_reply_to_tweet
+from scripts.twitter_utils import _generate_reply_to_tweet, get_recent_tweets, get_user_id
 
 lock = FileLock("data/forms_points.json.lock")
 
@@ -142,26 +142,18 @@ class FormsClient(discord.Client):
     @check_twitter.before_loop
     async def before_my_task(self):
         await self.wait_until_ready()  # wait until the bot logs in
-    
-
-
-    def get_user_id(self, username):
-        user = self.client.get_user(username=username)
-        return user['data']['id']
-
-    def get_recent_tweets(self, user_id, count=10):
-        # Get the user's most recent tweets
-        recent_tweets = self.client.get_users_tweets(id=user_id, max_results=count, exclude="replies")
-
-        return recent_tweets
         
     async def check_recent_infl_tweets(self, send=True):
-        
-        for username in FOLLOWED_INFLUENCER_ACCOUNTS:
-            user_id = self.get_user_id(username)
+
+        with lock:
+            with open(FOLLOWED_INFLUENCER_ACCOUNTS_JSON, 'r') as f:
+                followed_accounts = json.load(f)
+
+        for username in followed_accounts:
+            user_id = get_user_id(self.client, username)
             count = 5  # The number of tweets you want to fetch (max is 100)
 
-            tweets = self.get_recent_tweets(user_id, count)
+            tweets = get_recent_tweets(self.client, user_id, count)
 
             # Print out the fetched tweets
             for tweet in tweets['data']:

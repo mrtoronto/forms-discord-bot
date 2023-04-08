@@ -12,6 +12,60 @@ from scripts.convert_mentions import _replace_mentions
 
 logger = logging.getLogger('FORMS_BOT')
 
+async def _process_wavey_output(wavey_reply, message, bot, ctx):
+    if not wavey_reply:
+        return
+    for key, value in wavey_reply.items():
+        if key == 'GWP':
+            bot.GWP.update(value)
+        elif key == 'forms_points_dict':
+            bot.forms_points = value
+            bot._export_forms_points()
+        elif key == 'forms_points_trxns_dict':
+            bot.forms_points_trxns = value
+            bot._export_forms_points()
+        elif key == 'alpha_threshold':
+            bot.GWP['alpha_threshold'] = value
+        elif key == 'add_influencer':
+            bot.followed_influencers.append(value)
+            bot._export_influencers()
+        elif key == 'remove_influencer':
+            bot.followed_influencers.remove(value)
+            bot._export_influencers()
+        elif key == 'reply':
+            if 'text' in value:
+                channel_to_send = value['channel']
+                reply_text = value['text']
+                reply_text = await _replace_mentions(reply_text, message, bot)
+
+                if len(reply_text) > 2000:
+                    reply_text = reply_text[:2000]
+
+
+                await channel_to_send.send(
+                    reply_text,
+                    file=value.get('file'),
+                    reference=value.get('reference'),
+                    allowed_mentions=discord.AllowedMentions.all()
+                )
+            elif 'text_lines' in value:
+                lines = value['text_lines']
+                await _send_lines(lines, message, bot)
+            elif 'embed' in value:
+                channel_to_send = value['channel']
+                embed = value['embed']
+                try:
+                    await channel_to_send.send(
+                        embed=embed,
+                        allowed_mentions=discord.AllowedMentions.all(),
+                    )
+                    genesis_role = message.guild.get_role(1072547064271077436)
+                    logger.info(f'Genesis role: {genesis_role.mention}')
+                except Exception as e:
+                    await ctx.send(
+                        f'I tried to send an embed but I can\'t. {e}'
+                    )
+
 async def _on_message(message, bot):
     await bot._bot.wait_until_ready()
     cog = bot._bot.get_cog('WaveyCog')
@@ -60,52 +114,8 @@ async def _on_message(message, bot):
             if not success:
                 logger.warning(f'Wavey failed to respond to {message.author}\'s mention - {args}')
                 await ctx.send("I got distracted... Remind me what you wanted...?")
-                
-            # await _process_wavey_reply(wavey_reply, message, ctx)
-            for key, value in wavey_reply.items():
-                if key == 'GWP':
-                    bot.GWP.update(value)
-                elif key == 'forms_points_dict':
-                    bot.forms_points = value
-                    bot._export_forms_points()
-                elif key == 'forms_points_trxns_dict':
-                    bot.forms_points_trxns = value
-                    bot._export_forms_points()
-                elif key == 'alpha_threshold':
-                    bot.GWP['alpha_threshold'] = value
-                elif key == 'reply':
-                    if 'text' in value:
-                        channel_to_send = value['channel']
-                        reply_text = value['text']
-                        reply_text = await _replace_mentions(reply_text, message, bot)
-
-                        if len(reply_text) > 2000:
-                            reply_text = reply_text[:2000]
-
-
-                        await channel_to_send.send(
-                            reply_text,
-                            file=value.get('file'),
-                            reference=value.get('reference'),
-                            allowed_mentions=discord.AllowedMentions.all()
-                        )
-                    elif 'text_lines' in value:
-                        lines = value['text_lines']
-                        await _send_lines(lines, message, bot)
-                    elif 'embed' in value:
-                        channel_to_send = value['channel']
-                        embed = value['embed']
-                        try:
-                            await channel_to_send.send(
-                                embed=embed,
-                                allowed_mentions=discord.AllowedMentions.all(),
-                            )
-                            genesis_role = message.guild.get_role(1072547064271077436)
-                            logger.info(f'Genesis role: {genesis_role.mention}')
-                        except Exception as e:
-                            await ctx.send(
-                                f'I tried to send an embed but I can\'t. {e}'
-                            )
+            await _process_wavey_output(wavey_reply, message, bot, ctx)
+            
 
 
 
@@ -134,41 +144,4 @@ async def _on_message(message, bot):
                 logger.warning(f'Wavey failed to respond to {message.author}\'s mention - {args}')
                 await ctx.send("Oops I got distracted... Remind me what you wanted...?")
                 
-            for key, value in wavey_reply.items():
-                if key == 'GWP':
-                    bot.GWP.update(value)
-                elif key == 'forms_points_dict':
-                    bot.forms_points = value
-                    bot._export_forms_points()
-                elif key == 'forms_points_trxns_dict':
-                    bot.forms_points_trxns = value
-                    bot._export_forms_points()
-                elif key == 'alpha_threshold':
-                    bot.GWP['alpha_threshold'] = value
-                elif key == 'reply':
-                    if 'text' in value:
-                        channel_to_send = value['channel']
-                        reply_text = value['text']
-                        reply_text = await _replace_mentions(reply_text, message, bot)
-                        await channel_to_send.send(
-                            reply_text,
-                            file=value.get('file'),
-                            reference=value.get('reference'),
-                            allowed_mentions=discord.AllowedMentions.all()
-                        )
-                    elif 'text_lines' in value:
-                        lines = value['text_lines']
-                        await _send_lines(lines, message, bot)
-                    elif 'embed' in value:
-                        channel_to_send = value['channel']
-                        embed = value['embed']
-                        try:
-                            await channel_to_send.send(
-                                embed=embed,
-                                allowed_mentions=discord.AllowedMentions.all()
-                            )
-
-                        except Exception as e:
-                            await ctx.send(
-                                f'I tried to send an embed but I can\'t. {e}'
-                            )
+            await _process_wavey_output(wavey_reply, message, bot, ctx)

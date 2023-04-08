@@ -5,8 +5,7 @@ import discord
 import config_parameters as config
 from bot_scripts.send_lines import _send_lines
 from oa_api import _get_gpt_prompt, _get_gpt_response
-from scripts.process_wavey_commands import _send_quote_tweet, _send_tweet
-from scripts.twitter_utils import _generate_reply_to_tweet
+from scripts.twitter_utils import _generate_reply_to_tweet, _send_quote_tweet, _send_tweet
 
 logger = logging.getLogger('FORMS_BOT')
 

@@ -1,4 +1,7 @@
-
+import asyncio
+import json
+import sys
+import tweepy
 
 import re
 import requests
@@ -8,6 +11,7 @@ import logging
 from config_parameters import *
 
 from filelock import FileLock
+from local_settings import ELEVATED_ACCESS_TOKEN, ELEVATED_ACCESS_TOKEN_SECRET, ELEVATED_CONSUMER_KEY, ELEVATED_CONSUMER_SECRET, TWITTER_TOKEN
 
 from oa_api import _get_gpt_response
 
@@ -15,11 +19,38 @@ lock = FileLock("data/forms_points.json.lock")
 
 logger = logging.getLogger('FORMS_BOT')
 
+# Authenticate to Twitter
+auth = tweepy.OAuthHandler(ELEVATED_CONSUMER_KEY, ELEVATED_CONSUMER_SECRET)
+auth.set_access_token(ELEVATED_ACCESS_TOKEN, ELEVATED_ACCESS_TOKEN_SECRET)
+
+# Create an API object with elevated access
+api = tweepy.API(auth)
+
+client = tweepy.Client(
+    TWITTER_TOKEN,
+    return_type=dict,
+    wait_on_rate_limit=True,
+)
+
 
 def tag_visible(element):
     if element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']:
         return False
     return True
+
+def get_recent_tweets(client, user_id, count=10):
+    # Get the user's most recent tweets
+    recent_tweets = client.get_users_tweets(id=user_id, max_results=count, exclude="replies")
+    return recent_tweets
+
+def get_user_id(client, username):
+    user = client.get_user(username=username)
+    return user['data']['id']
+
+def get_tweet_from_api(client, tweet_id):
+    tweet = client.get_tweet(id=tweet_id)
+    return tweet
+
 
 
 def _get_link_content(tweet):
@@ -96,3 +127,196 @@ async def _generate_reply_to_tweet(tweet, username):
     body += f"```{wavey_reply}```"
     return body
 
+
+
+        
+
+def _send_tweet(data, channel=None, reply_to_tweet_id=None):
+
+    if isinstance(data, dict):
+        text = " ".join(data['message'].content.split(' ')[2:])
+        channel = data['message'].channel
+    else:
+        text = data
+        channel = channel
+
+    if reply_to_tweet_id:
+        # If it is, send the tweet as a reply to the provided tweet ID
+        api.update_status(
+            text, 
+            in_reply_to_status_id=reply_to_tweet_id, 
+            auto_populate_reply_metadata=True
+        )
+    else:
+        # If not, send the tweet as usual
+        api.update_status(text)
+
+
+    return {
+        'reply': {
+            'channel': channel,
+            'text': f'Tweeted: {text}',
+            'reference': data['message']
+        }
+    }
+
+def _send_quote_tweet(data, tweet_link, channel=None, reply_to_tweet_id=None):
+    if isinstance(data, dict):
+        text = " ".join(data['message'].content.split(' ')[2:])
+        channel = data['message'].channel
+    else:
+        text = data
+        channel = channel
+
+    text += f' {tweet_link}'
+
+    if reply_to_tweet_id:
+        # If it is, send the tweet as a reply to the provided tweet ID
+        api.update_status(
+            text, 
+            auto_populate_reply_metadata=True
+        )
+    else:
+        # If not, send the tweet as usual
+        api.update_status(text)
+
+
+    return {
+        'reply': {
+            'channel': channel,
+            'text': f'Tweeted: {text}',
+            'reference': data['message']
+        }
+    }
+
+
+async def _write_tweet(data):
+    """
+    Given a message with a link to a tweet, get the tweet from the tweepy API then generate a 
+    response with _generate_reply_to_tweet and send it to the channel.
+    """
+
+    # Get the tweet ID from the message
+    tweet_link = data['message'].content.split(' ')[2]
+    tweet_id = tweet_link.split('/')[-1]
+    tweet_author = tweet_link.split('/')[-3]
+    logger.info(f'tweet_id: {tweet_id}')
+
+    try:
+        tweet = get_tweet_from_api(client, tweet_id)
+        logger.info(f'tweet: {tweet}')
+    except Exception as e:
+        logger.error(e, exc_info=sys.exc_info())
+        return {
+            'reply': {
+                'channel': data['message'].channel,
+                'text': f'Could not find tweet with ID {tweet_id}',
+                'reference': data['message']
+            }
+        }
+
+    body = await _generate_reply_to_tweet(tweet['data'], tweet_author)
+    logger.info(f'body: {body}')
+    body = body.strip()
+    msg = await data['bot'].INFLUENCER_TWITTER_CHANNEL.send(body)
+    await asyncio.sleep(1)
+    await msg.edit(suppress=True)
+    return {
+        'reply': {
+            'channel': data['message'].channel,
+            'text': f'Responded to {tweet_id} in {data["bot"].INFLUENCER_TWITTER_CHANNEL.mention}',
+            'reference': data['message']
+        }
+    }
+
+
+def _check_influencers(data):
+    with lock:
+        with open(FOLLOWED_INFLUENCER_ACCOUNTS_JSON, 'r') as f:
+            influencers = json.load(f)
+
+    return {
+        'reply': {
+            'channel': data['message'].channel,
+            'text': f'Currently following {len(influencers)} influencers: {", ".join(influencers)}',
+            'reference': data['message']
+        }
+    }
+def _add_influencer(data):
+    
+    ### get account to add from message
+    influencer_username = data['message'].content.split(' ')[2]
+
+    ### check if account exists
+    try:
+        user = get_user_id(client, influencer_username)
+    except Exception as e:
+        logger.error(e, exc_info=sys.exc_info())
+        return {
+            'reply': {
+                'channel': data['message'].channel,
+                'text': f'Could not find user with username {influencer_username}',
+                'reference': data['message']
+            }
+        }
+    
+    with lock:
+        influencers = json.load(FOLLOWED_INFLUENCER_ACCOUNTS_JSON)
+    
+    ### check if account is already on list
+    if influencer_username in influencers:
+        return {
+            'reply': {
+                'channel': data['message'].channel,
+                'text': f'User with username {influencer_username} is already on list',
+                'reference': data['message']
+            }
+        }
+    
+    ### add account to list
+    influencers.append(influencer_username)
+    with open(FOLLOWED_INFLUENCER_ACCOUNTS_JSON, 'w') as f:
+        json.dump(influencers, f)
+
+    return {
+        'reply': {
+            'channel': data['message'].channel,
+            'text': f'Successfully added twitter account: {influencer_username}',
+            'reference': data['message']
+        }
+    }
+
+def _remove_influencer(data):
+    
+    ### get account to add from message
+    influencer_username = data['message'].content.split(' ')[2]
+
+    ### check if account is on list
+    with lock:
+        with open(FOLLOWED_INFLUENCER_ACCOUNTS_JSON, 'r') as f:
+            influencers = json.load(f)
+
+    user = [i for i in influencers if i == influencer_username]
+    
+    if not user:
+        return {
+            'reply': {
+                'channel': data['message'].channel,
+                'text': f'Could not find user with username on list {influencer_username}',
+                'reference': data['message']
+            }
+        }
+    
+    ### remove account from list
+    influencers.remove(influencer_username)
+
+    with open(FOLLOWED_INFLUENCER_ACCOUNTS_JSON, 'w') as f:
+        json.dump(influencers, f)
+
+    return {
+        'reply': {
+            'channel': data['message'].channel,
+            'text': f'Successfully removed twitter account: {influencer_username}',
+            'reference': data['message']
+        }
+    }
