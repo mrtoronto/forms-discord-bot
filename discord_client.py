@@ -150,23 +150,27 @@ class FormsClient(discord.Client):
                 followed_accounts = json.load(f)
 
         for username in followed_accounts:
-            user_id = get_user_id(self.client, username)
-            count = 5  # The number of tweets you want to fetch (max is 100)
+            try:
+                user_id = get_user_id(self.client, username)
+                count = 5  # The number of tweets you want to fetch (max is 100)
 
-            tweets = get_recent_tweets(self.client, user_id, count)
+                tweets = get_recent_tweets(self.client, user_id, count)
 
-            # Print out the fetched tweets
-            for tweet in tweets['data']:
-                if tweet['id'] not in self.past_influencer_tweet_ids:
-                    ### On the first run, add recent tweets to the past_influencer_tweet_ids list
-                    ### but don't send replies to discord channel
-                    self.past_influencer_tweet_ids.append(tweet['id'])
-                    
-                    if send:
-                        body = await _generate_reply_to_tweet(tweet, username)
-                        msg = await self.INFLUENCER_TWITTER_CHANNEL.send(body)
-                        await asyncio.sleep(1)
-                        await msg.edit(suppress=True)
+                # Print out the fetched tweets
+                for tweet in tweets['data']:
+                    if tweet['id'] not in self.past_influencer_tweet_ids:
+                        ### On the first run, add recent tweets to the past_influencer_tweet_ids list
+                        ### but don't send replies to discord channel
+                        self.past_influencer_tweet_ids.append(tweet['id'])
+                        
+                        if send:
+                            body = await _generate_reply_to_tweet(tweet, username)
+                            msg = await self.INFLUENCER_TWITTER_CHANNEL.send(body)
+                            await asyncio.sleep(1)
+                            await msg.edit(suppress=True)
+            except:
+                logger.error(f'Failed to get tweets for {username} \n {traceback.format_exc()}')
+                continue
     
     @tasks.loop(minutes=5)
     async def check_influencer_twitter(self):

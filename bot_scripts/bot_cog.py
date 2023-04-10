@@ -23,16 +23,11 @@ async def wakeup_message(bot):
     forms_guild_id = 1072543131607777300
     forms_guild = bot.get_guild(forms_guild_id)
     bot_commands_channel = forms_guild.get_channel(1072555059637923910)
+    nsfwavey_channel = forms_guild.get_channel(1080986943946502235)
     logger.info('Sending wakeup message')
     await bot.wait_until_ready()
-    await bot_commands_channel.send('Gm ;)')
-    await bot_commands_channel.send('Gm <a:wink~1:1087840766392541235>')
-
-def schedule_hourly_task(bot):
-    now = datetime.now()
-    next_hour = (now.replace(second=0, microsecond=0, minute=42) + timedelta(hours=0)).timestamp()
-    scheduler.enterabs(next_hour, priority=1, action=asyncio.create_task, kwargs=(wakeup_message(bot),))
-   
+    await nsfwavey_channel.send('Gm ;)')
+    await bot_commands_channel.send('NSFWavey is awake.')
 
 
 class WaveyCog(commands.Cog):
@@ -41,8 +36,6 @@ class WaveyCog(commands.Cog):
         self.bot = bot
         self.morning_start = 0
         self.night_start = 0
-
-        asyncio.create_task(self._update_start_times())
 
         self.scheduler = AsyncIOScheduler()
         ### Save job so its schedule can be edited later
@@ -60,6 +53,8 @@ class WaveyCog(commands.Cog):
             CronTrigger(hour=0, minute=0, second=0)
         )
         self.scheduler.start()
+
+        asyncio.create_task(self._update_start_times())
 
         self._backup_forms_points()
 
@@ -125,6 +120,9 @@ class WaveyCog(commands.Cog):
     async def clear_channel(self):
         forms_guild_id = 1072543131607777300
         forms_guild = self.bot.get_guild(forms_guild_id)
+        bot_commands_channel = forms_guild.get_channel(1072555059637923910)
         nsfwavey_channel = forms_guild.get_channel(1080986943946502235)
         await nsfwavey_channel.purge()
+        await bot_commands_channel.send('NSFWavey is asleep.')
+
         
