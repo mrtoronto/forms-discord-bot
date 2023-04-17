@@ -111,14 +111,23 @@ async def _generate_reply_to_tweet(tweet, username):
     system_message_base = random.choice(system_message_bases)
 
     prompt = [{
-        "role": "system", 
-        "content": system_message_base}]
-    prompt += [{"role": "user", "content": tweet['text'] + link_content}]
+            "role": "system", 
+            "content": system_message_base
+        },
+        {
+            "role": "system", 
+            "content": 'Remember you are writing a tweet so use fewer than 200 characters. The limit is 280 but the user might want to include a link which could be up to 80 so you should aim for 200.'
+        },
+        {
+            "role": "user", 
+            "content": tweet['text'] + link_content
+        }
+    ]
 
     wavey_reply = _get_gpt_response(
         prompt,
         0.8, 
-        50, 
+        100, 
         '', 
         (False, False), 
         model='gpt-4'
